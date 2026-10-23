@@ -1,0 +1,74 @@
+{
+  "features": [
+    "frames_sampled",
+    "ball_wide_share",
+    "ball_x_start",
+    "ball_progress_m",
+    "attack_width_mean",
+    "attack_depth_mean",
+    "attack_spacing_mean",
+    "defense_width_mean",
+    "defense_depth_mean",
+    "defense_spacing_mean",
+    "defenders_within_5m_mean",
+    "defenders_within_10m_mean",
+    "attackers_in_wide_zones_mean",
+    "attackers_ahead_of_ball_mean",
+    "match_minute",
+    "period",
+    "duration",
+    "progress_speed_mps"
+  ],
+  "classes": [
+    "build_up",
+    "creation",
+    "direct_attack",
+    "fast_transition",
+    "finishing"
+  ],
+  "accuracy": 0.9206349206349206,
+  "macro_f1": 0.8754635859675058,
+  "train_phases": 2388,
+  "test_phases": 567,
+  "test_matches": [
+    2015213,
+    1899585
+  ],
+  "confusion": [
+    [
+      116,
+      0,
+      1,
+      0,
+      0
+    ],
+    [
+      5,
+      209,
+      6,
+      3,
+      10
+    ],
+    [
+      0,
+      5,
+      72,
+      1,
+      1
+    ],
+    [
+      0,
+      5,
+      1,
+      14,
+      5
+    ],
+    [
+      0,
+      2,
+      0,
+      0,
+      111
+    ]
+  ]
+}
