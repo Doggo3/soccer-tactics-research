@@ -5,166 +5,172 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 from xgboost import XGBClassifier
-from visuals import NAMES, COLORS, style, pitch
+from visuals import NAMES, COLORS, style
+
 P=Path(__file__).parent
-st.set_page_config(page_title='Soccer Attacking Phase Classification',page_icon='⚽',layout='wide')
-st.markdown("""<style>
-.stApp {background:#fff;color:#17251c;}
-.block-container{max-width:1150px;padding-top:2rem;}
-h1{font-size:2.5rem!important;} h2,h3{color:#17251c!important;}
-p,li,[data-testid="stMarkdownContainer"] p{font-size:18px!important;line-height:1.65;}
-[data-testid="stCaptionContainer"] p{font-size:15px!important;color:#45574b!important;}
-[data-testid="stMetric"]{background:#eef4ef;border:1px solid #c7d5ca;border-radius:8px;padding:18px;}
-[data-baseweb="tab"]{font-size:18px!important;min-height:56px;padding:12px 22px!important;}
-[data-testid="stForm"]{border:2px solid #b5cabc;padding:20px;border-radius:8px;}
-button[kind="primaryFormSubmit"]{min-height:48px;font-size:18px!important;}
-</style>""",unsafe_allow_html=True)
+st.set_page_config(page_title='Soccer Attacking Phases | Jack Chiang',page_icon='⚽',layout='wide')
+st.markdown('''<style>
+.block-container{max-width:1050px;padding-top:4rem;padding-bottom:4rem;}
+h1{font-size:2.25rem!important;line-height:1.2!important;}
+p,li{font-size:17px;line-height:1.65;}
+[data-testid="stMetric"]{padding:14px;background:#eef4ef;border-radius:8px;}
+[data-testid="stCaptionContainer"] p{color:#526057;}
+</style>''',unsafe_allow_html=True)
 @st.cache_resource
 def load():
- m=XGBClassifier();m.load_model(P/'model.ubj')
- return m,json.loads((P/'metadata.json').read_text()),pd.read_csv(P/'examples.csv')
-m,meta,examples=load();features=meta['features'];classes=meta['classes']
-st.caption('Jack Chiang · Soccer tactics research')
+ model=XGBClassifier();model.load_model(P/'model.ubj')
+ meta=json.loads((P/'metadata.json').read_text());data=pd.read_csv(P/'examples.csv')
+ probs=model.predict_proba(data[meta['features']])
+ data['prediction']=[meta['classes'][i] for i in probs.argmax(axis=1)]
+ data['correct']=data.prediction==data.tactic_label
+ return model,meta,data,probs
+m,meta,data,all_probs=load();features=meta['features'];classes=meta['classes']
+DEFS={
+'build_up':'A controlled attack that usually begins farther from the opponent’s goal.',
+'creation':'Developing an attacking opportunity.',
+'direct_attack':'Moving the ball forward quickly.',
+'fast_transition':'Attacking soon after gaining possession.',
+'finishing':'The final part of an attack near the opponent’s goal.'}
+FIELDS={
+'ball_x_start':('Ball starting x position','m','Position along the pitch at the start of the phase. Zero is midfield. These are the saved tracking coordinates; the app does not infer attacking direction.'),
+'ball_progress_m':('Signed ball progress','m','Change in the ball’s x coordinate over the phase. A negative value means movement toward decreasing x, not automatically a backward attack.'),
+'duration':('Phase duration','s','How long this section of play lasted.'),
+'progress_speed_mps':('Signed progress speed','m/s','Signed x progress divided by duration. This is not the ball’s total running speed.'),
+'attack_width_mean':('Attacking team width','m','Average side-to-side spread of the attacking team.'),
+'attack_depth_mean':('Attacking team depth','m','Average front-to-back spread of the attacking team.'),
+'attack_spacing_mean':('Attacking player spacing','m','Phase-average spacing measurement for attacking players.'),
+'defense_width_mean':('Defending team width','m','Average side-to-side spread of the defending team.'),
+'defense_depth_mean':('Defending team depth','m','Average front-to-back spread of the defending team.'),
+'defense_spacing_mean':('Defending player spacing','m','Phase-average spacing measurement for defending players.'),
+'defenders_within_5m_mean':('Defenders within 5 m','players','Average number of defenders within 5 meters of the ball.'),
+'defenders_within_10m_mean':('Defenders within 10 m','players','Average number of defenders within 10 meters of the ball.'),
+'attackers_ahead_of_ball_mean':('Attackers ahead of the ball','players','Average count across the phase; fractional values are possible.'),
+'attackers_in_wide_zones_mean':('Attackers in wide zones','players','Average count of attackers in the dataset’s wide zones.'),
+'ball_wide_share':('Ball wide share','share','Fraction of sampled observations with the ball in the dataset’s wide zones.'),
+'frames_sampled':('Sampled frames','frames','Number of tracking observations used to summarize the phase.'),
+'match_minute':('Match minute','min','Time in the match associated with this phase.'),
+'period':('Match period','period','Period identifier in the source data.')}
+def chart(fig,key):
+ fig=style(fig);fig.update_layout(height=430,margin=dict(l=20,r=25,t=65,b=70))
+ st.plotly_chart(fig,width='stretch',key=key,config={'displaylogo':False,'scrollZoom':False})
+def values_table(row):
+ return pd.DataFrame([{'Measurement':FIELDS[f][0],'Value':round(float(row[f]),3),'Unit':FIELDS[f][1],'Meaning':FIELDS[f][2]} for f in features])
+
+st.caption('Jack Chiang · Research companion')
 st.title('Machine Learning-Based Classification of Soccer Attacking Phases')
-st.markdown('### Using Spatiotemporal Tracking Features')
-st.write('I tested whether player and ball tracking data could identify five types of attack. This app lets you try the model on real phases and see how changing the inputs affects its prediction.')
-a,b,c,d=st.columns(4)
-a.metric('Attacking phases','2,955');b.metric('Matches','10');c.metric('App model accuracy',f"{meta['accuracy']:.1%}");d.metric('App model macro F1',f"{meta['macro_f1']:.3f}")
-st.caption('The app uses a retrained XGBoost model. Results reported in the paper are shown in the Paper results tab.')
-predict,challenge,explore,research,overview=st.tabs(['Tactics playground','Guess the tactic','Explore the data','Paper results','About the study'])
-with overview:
- st.subheader('What does this project do?')
- st.write('A soccer attack can develop in several ways. I trained machine-learning models to recognize five types of attacking phase from measurements of the players and ball.')
- st.write('An attacking phase is a short section of play. The model receives 18 measurements about that section, such as where the ball starts, how far it moves, and how spread out the teams are. It returns one of the five labels below.')
- st.table(pd.DataFrame({'Type of attack':['Build-up','Creation','Direct attack','Fast transition','Finishing'],'Meaning':['Building the attack from farther away from the opponent’s goal.','Working to create a scoring opportunity.','Moving the ball forward quickly.','Attacking soon after winning possession.','The final part of the attack near the opponent’s goal.']}))
- st.subheader('Which tactics were most common?')
- counts=pd.DataFrame({'Tactic':['Creation','Finishing','Build-up','Direct attack','Fast transition'],'Phases':[1226,662,598,337,132]})
- st.plotly_chart(style(px.bar(counts,x='Phases',y='Tactic',orientation='h',text='Phases',color_discrete_sequence=['#285943'],title='All 2,955 phases in the paper')).update_layout(yaxis=dict(autorange='reversed')),width='stretch')
- st.caption('Source: paper, Dataset section. Fast transitions account for only 132 of the 2,955 phases.')
+st.markdown('**Using Spatiotemporal Tracking Features**')
+page=st.radio('Explore the research',['1 · Understand the study','2 · Inspect real phases','3 · Compare the results'],horizontal=True,label_visibility='collapsed')
+st.divider()
+if page.startswith('1'):
+ st.header('Can tracking measurements identify an attacking phase?')
+ st.write('Coaches and analysts often identify tactics by watching matches. My paper tests whether measurements of the players and ball can help classify short sections of an attack into five categories.')
+ a,b,c=st.columns(3);a.metric('Matches','10');b.metric('Attacking phases','2,955');c.metric('Measurements per phase','18')
+ st.caption('Source: paper, Dataset section. SkillCorner open data from the Australian A-League.')
+ st.subheader('What the model receives—and what it returns')
+ st.markdown('**Tracking observations → 18 phase measurements → classifier → one of five labels**')
+ st.write('Each row summarizes one attacking phase: ball movement, team shape, player spacing, nearby defenders, and timing. The classifier learns to reproduce the phase labels supplied by SkillCorner’s AI-based system.')
+ st.info('This app works with phase summaries. It does not contain match video or frame-by-frame player positions. Use “Inspect real phases” to examine the measurements and the model’s prediction together.')
+ st.subheader('The five labels')
+ tactic=st.selectbox('Choose a label to learn about',classes,format_func=lambda x:NAMES[x])
+ st.markdown('### '+NAMES[tactic]);st.write(DEFS[tactic])
+ counts={'build_up':598,'creation':1226,'direct_attack':337,'fast_transition':132,'finishing':662}
+ st.write(f"The full study contains **{counts[tactic]:,} {NAMES[tactic].lower()} phases** ({counts[tactic]/2955:.1%} of the dataset). These descriptions are the paper’s explanations, not fixed numerical rules for assigning labels.")
+ frame=pd.DataFrame({'Tactic':[NAMES[x] for x in classes],'Phases':[counts[x] for x in classes]})
+ fig=px.bar(frame,x='Phases',y='Tactic',orientation='h',text='Phases',title='How many examples of each tactic?',color_discrete_sequence=['#285943'])
+ fig.update_layout(yaxis=dict(autorange='reversed'));chart(fig,'counts')
+ st.caption('All 2,955 phases. Uneven class sizes matter: a model can score well overall while missing a large share of a rare tactic.')
  st.subheader('How the study was tested')
- split=pd.DataFrame({'Set':['Training · 8 matches','Testing · 2 matches'],'Phases':[2388,567]})
- st.plotly_chart(style(px.bar(split,x='Set',y='Phases',text='Phases',color_discrete_sequence=['#2563a0'],title='Entire matches were kept separate')),width='stretch')
- st.subheader('What I found')
- st.write('In my paper, Enhanced XGBoost classified 91.9% of test phases correctly—about 92 out of 100. Enhanced Random Forest scored best when all five tactics were weighted equally. Fast transitions were hardest to identify, partly because there were only 132 examples in the dataset.')
- st.write('The study used 2,955 phases from 10 Australian A-League matches. Eight matches were used to train the models, and two different matches were used to test them.')
- st.info('To try it: open Tactics playground, pick an example, and move the sliders. The prediction updates automatically. No upload is needed.')
- st.caption('The app uses numerical tracking features, not video. Its labels come from SkillCorner’s existing system. It identifies the type of attack; it does not choose a tactic for a coach.')
-with predict:
- st.subheader('Change a phase. See what the model predicts.')
- st.write('Start with a real example. Move the sliders to explore a different version of that attack. No files or coding needed.')
- label=st.selectbox('Start with this type of attack',classes,format_func=lambda v:NAMES[v])
- subset=examples[examples.tactic_label==label]
- idx=st.selectbox('Choose an example',subset.index.tolist(),format_func=lambda i:f"Match {int(examples.loc[i,'match_id'])} · phase {int(examples.loc[i,'phase_index'])} · minute {examples.loc[i,'match_minute']:.1f}")
- original=examples.loc[idx,features].astype(float); values=original.copy()
- left,right=st.columns([1,1.25])
- fields=[('ball_x_start','Ball starting position (meters)','Zero is midfield; values use the original tracking coordinate system.'),('ball_progress_m','Ball movement along the field (meters)','Signed change in ball x position, not total distance traveled.'),('duration','Length of the phase (seconds)','Changing this also updates progress speed.'),('attack_width_mean','Attacking team width (meters)','Average side-to-side spread of the attacking team.'),('attackers_ahead_of_ball_mean','Attackers ahead of the ball','Average count across the phase, so fractions are possible.')]
- with left:
-  st.markdown('**Try a quick change**')
-  quick=st.columns(3)
-  if quick[0].button('Wider attack',use_container_width=True):
-   st.session_state[f'slider_{idx}_attack_width_mean']=float(examples.attack_width_mean.quantile(.9))
-  if quick[1].button('Shorter phase',use_container_width=True):
-   st.session_state[f'slider_{idx}_duration']=float(examples.duration.quantile(.1))
-  if quick[2].button('Near midfield',use_container_width=True):
-   st.session_state[f'slider_{idx}_ball_x_start']=0.
-  if st.button('Reset this example'):
-   for f,_,_ in fields: st.session_state.pop(f'slider_{idx}_{f}',None)
-  for f,title,help_text in fields:
-   low=float(examples[f].min());high=float(examples[f].max());v=float(original[f])
-   values[f]=st.slider(title,min_value=low,max_value=high,value=None if f'slider_{idx}_{f}' in st.session_state else v,key=f'slider_{idx}_{f}',help=help_text)
- values['progress_speed_mps']=values['ball_progress_m']/values['duration'] if values['duration']>0 else 0.
- with right:
-  st.plotly_chart(pitch(values),width='stretch')
-  st.caption('Schematic: shows only ball movement along the x-axis. The centered line is not the real sideways path; the field outline is illustrative. Player positions cannot be recovered from phase averages.')
- x=pd.DataFrame([values],columns=features);probs=m.predict_proba(x)[0];baseline=m.predict_proba(pd.DataFrame([original],columns=features))[0]
- winner=classes[int(probs.argmax())]
- st.subheader('Prediction: '+NAMES[winner])
- old_winner=classes[int(baseline.argmax())]
- score,shift,speed=st.columns(3)
- score.metric('Model probability',f'{probs.max():.1%}',f'{probs.max()-baseline[probs.argmax()]:+.1%} vs original')
- shift.metric('Original prediction',NAMES[old_winner])
- speed.metric('Signed progress speed',f"{values['progress_speed_mps']:.1f} m/s")
- if winner!=old_winner: st.success(f'The prediction changed from {NAMES[old_winner]} to {NAMES[winner]}.')
- st.caption('Original example label: '+NAMES[label]+'. The other model inputs stay at their original values. Slider changes are hypothetical, and some combinations may be unrealistic.')
- chart=pd.DataFrame({'Tactic':[NAMES[c] for c in classes]*2,'Probability':list(baseline)+list(probs),'Version':['Original example']*5+['Your changes']*5})
- fig=style(px.bar(chart,x='Probability',y='Tactic',color='Version',barmode='group',orientation='h',color_discrete_map={'Original example':'#b7c8be','Your changes':'#285943'},range_x=[0,1],title='How the prediction changes'))
- fig.update_xaxes(tickformat='.0%');fig.update_traces(hovertemplate='%{y}: %{x:.1%}<extra>%{fullData.name}</extra>')
- st.plotly_chart(fig,width='stretch')
- st.caption('Scores are model probabilities, not guarantees. This identifies a type of attack; it does not decide which tactic a coach should use.')
- with st.expander('See all 18 inputs'):
-  st.dataframe(pd.DataFrame({'Original':original,'Your changes':values}),width='stretch')
+ a,b=st.columns(2)
+ a.markdown('**Train: 8 matches · 2,388 phases**\n\nThe models learn relationships between measurements and labels.')
+ b.markdown('**Test: 2 different matches · 567 phases**\n\nThe models are evaluated on matches they did not see during training.')
+ st.write('The original models used 14 measurements. The enhanced models added match minute, period, phase duration, and progress speed. Models were compared using the same match-based split.')
+ st.subheader('Main finding')
+ st.write('Enhanced XGBoost reached **91.9% accuracy** in the paper—about 92 correct labels per 100 test phases. Enhanced Random Forest had the highest **macro F1 (0.873)**, which gives the five tactics equal weight. Fast transitions remained the hardest category.')
+ st.caption('Source: paper, Introduction, Dataset, Methodology, and Results and Discussion. Select “Compare the results” for the full comparison and limitations.')
 
-with challenge:
- st.subheader('Can you spot the tactic?')
- st.write('Read a real test phase, make your guess, then compare it with the supplied label and the model. This is a feature-reading challenge, not match footage.')
- if 'round_number' not in st.session_state: st.session_state.round_number=0
- if 'quiz_answers' not in st.session_state: st.session_state.quiz_answers={}
- round_id=st.session_state.round_number
- quiz_index=int(np.random.default_rng(2026+round_id).integers(len(examples)))
- sample=examples.iloc[quiz_index]
- q1,q2,q3=st.columns(3)
- q1.metric('Ball start',f"{sample.ball_x_start:.1f} m")
- q2.metric('Signed ball progress',f"{sample.ball_progress_m:.1f} m")
- q3.metric('Phase duration',f"{sample.duration:.1f} s")
- st.plotly_chart(pitch(sample),width='stretch',key='quiz_pitch')
- st.caption('Illustrative x-axis replay. The animation interpolates between phase endpoints; it does not reconstruct actual movement or player positions.')
- guess=st.radio('Your guess',classes,format_func=lambda x:NAMES[x],horizontal=True,key=f'guess_{round_id}')
- if st.button('Reveal the answer',type='primary') and round_id not in st.session_state.quiz_answers:
-  st.session_state.quiz_answers[round_id]=guess==sample.tactic_label
- if round_id in st.session_state.quiz_answers:
-  correct=st.session_state.quiz_answers[round_id]
-  (st.success if correct else st.info)('Correct! Reference label: '+NAMES[sample.tactic_label] if correct else 'Reference label: '+NAMES[sample.tactic_label])
-  qp=m.predict_proba(pd.DataFrame([sample[features].astype(float)],columns=features))[0]
-  st.write(f"Model guess: **{NAMES[classes[int(qp.argmax())]]}** ({qp.max():.1%} probability). Reference labels come from SkillCorner's system.")
-  st.caption('Your score: '+str(sum(st.session_state.quiz_answers.values()))+' / '+str(len(st.session_state.quiz_answers))+' revealed phases. Your first revealed answer counts.')
- if st.button('Next phase →'):
-  st.session_state.round_number+=1
-  st.rerun()
+elif page.startswith('2'):
+ st.header('Inspect a real attacking phase')
+ st.write('Choose a supplied label, then examine an actual phase from the two test matches. Compare its measurements with the model’s prediction. Nothing here is a reconstructed match replay.')
+ st.caption('The explorer uses the retrained app model. Its results are separate from the original paper’s results.')
+ a,b=st.columns(2)
+ label=a.selectbox('1. Supplied tactic label',classes,format_func=lambda x:NAMES[x])
+ mode=b.radio('Show examples',['All','Model matches label','Model differs from label'])
+ pool=data[data.tactic_label==label]
+ if mode!='All': pool=pool[pool.correct==(mode=='Model matches label')]
+ st.write('**'+NAMES[label]+':** '+DEFS[label])
+ st.caption(f'{len(pool)} matching test phases. A “supplied label” is SkillCorner’s reference classification, not an independent coach assessment.')
+ if pool.empty:
+  st.info('No phases match this filter. Select “All” to inspect this tactic.')
+ else:
+  idx=st.selectbox('2. Choose a phase',pool.index.tolist(),format_func=lambda i:f"Match {int(data.loc[i,'match_id'])} · phase {int(data.loc[i,'phase_index'])} · minute {data.loc[i,'match_minute']:.1f}")
+  row=data.loc[idx];prob=all_probs[idx];winner=row.prediction
+  a,b=st.columns(2);a.metric('Supplied label',NAMES[label]);b.metric('App prediction',NAMES[winner])
+  st.write('The app model **'+('matches' if row.correct else 'differs from')+'** the supplied label for this phase.')
+  st.subheader('Measurements behind this example')
+  a,b,c=st.columns(3);a.metric('Duration',f'{row.duration:.1f} s');b.metric('Signed x progress',f'{row.ball_progress_m:+.1f} m');c.metric('Attacking width',f'{row.attack_width_mean:.1f} m')
+  st.caption('Progress is displacement along the stored x-axis. Width is the team’s average side-to-side spread. These summaries do not show the order of movement.')
+  scores=pd.DataFrame({'Tactic':[NAMES[c] for c in classes],'Model probability':prob})
+  fig=px.bar(scores,x='Model probability',y='Tactic',orientation='h',text='Model probability',range_x=[0,1],title='How the app model scores this phase',color_discrete_sequence=['#285943'])
+  fig.update_traces(texttemplate='%{x:.1%}');fig.update_xaxes(tickformat='.0%');chart(fig,'probabilities')
+  st.caption('The highest score determines the predicted label. These are model probabilities, not guarantees or an explanation of why a prediction was made.')
+  st.subheader('How does this phase compare with other phases?')
+  choices=['duration','ball_x_start','ball_progress_m','attack_width_mean','attackers_ahead_of_ball_mean']
+  f=st.selectbox('Compare one measurement',choices,format_func=lambda x:FIELDS[x][0])
+  title,unit,meaning=FIELDS[f];st.write(meaning)
+  view=data.assign(Tactic=data.tactic_label.map(NAMES))
+  fig=px.box(view,x=f,y='Tactic',orientation='h',category_orders={'Tactic':list(NAMES.values())},labels={f:f'{title} ({unit})'},title=f'{title} across all 567 test phases',color_discrete_sequence=['#819b8a'])
+  fig.add_vline(x=float(row[f]),line_color='#a4471a',line_width=3,line_dash='dash',annotation_text=f'Selected phase: {row[f]:.1f} {unit}',annotation_position='top')
+  chart(fig,'distribution')
+  st.caption('The line inside each box is the median; the box contains the middle half of the values. The orange dashed line marks your selected phase. Overlapping boxes show why one measurement alone cannot define a tactic.')
+  with st.expander('See all 18 measurements and their meanings'):
+   st.dataframe(values_table(row),hide_index=True,width='stretch')
+  with st.expander('Optional experiment: change one model input'):
+   st.write('This is a sensitivity check: how does the model respond if one measurement changes? It is not a simulation of how players would react. All other inputs stay fixed, except progress speed is recalculated when duration or progress changes.')
+   field=st.selectbox('Measurement to change',choices,format_func=lambda x:FIELDS[x][0],key='experiment_field')
+   st.write(FIELDS[field][2])
+   low,high=float(data[field].min()),float(data[field].max())
+   val=st.slider(f'{FIELDS[field][0]} ({FIELDS[field][1]})',low,high,float(row[field]),key=f'experiment_{idx}_{field}')
+   altered=row[features].astype(float).copy();altered[field]=val
+   if field in ['duration','ball_progress_m']: altered['progress_speed_mps']=altered.ball_progress_m/altered.duration
+   new=m.predict_proba(pd.DataFrame([altered],columns=features))[0];newlabel=classes[int(new.argmax())]
+   st.write(f'**Original prediction: {NAMES[winner]} → changed-input prediction: {NAMES[newlabel]}**')
+   comp=pd.DataFrame({'Tactic':[NAMES[c] for c in classes],'Original probability':prob,'Changed probability':new})
+   fig=px.bar(comp.melt(id_vars='Tactic',var_name='Version',value_name='Probability'),x='Tactic',y='Probability',color='Version',barmode='group',range_y=[0,1],title='Original and changed-input scores',color_discrete_map={'Original probability':'#a3b6aa','Changed probability':'#285943'})
+   fig.update_yaxes(tickformat='.0%');chart(fig,'experiment')
+   st.caption('Slider limits are the observed test-data range. Combining a new value with the other unchanged measurements may still describe an unrealistic phase. These predictions are not results reported in the paper.')
 
-with explore:
- st.subheader('What does the data look like?')
- st.write('Each dot below is one attacking phase from the two held-out test matches. Hover over it to see the match and phase.')
- view=examples.copy();view['Tactic']=view.tactic_label.map(NAMES)
- selected=st.multiselect('Show tactics',list(NAMES.values()),default=list(NAMES.values()))
- view=view[view.Tactic.isin(selected)]
- st.caption(f'{len(view):,} of 567 test phases shown. These plots do not include the training matches.')
- if len(view):
-  axes={'Ball starting position (m)':'ball_x_start','Ball progress (signed m)':'ball_progress_m','Duration (seconds)':'duration','Attacking width (m)':'attack_width_mean','Defenders within 5 m':'defenders_within_5m_mean'}
-  a,b=st.columns(2)
-  xf=a.selectbox('Horizontal axis',list(axes),index=0);yf=b.selectbox('Vertical axis',list(axes),index=1)
-  st.plotly_chart(style(px.scatter(view,x=axes[xf],y=axes[yf],color='Tactic',color_discrete_map=COLORS,labels={axes[xf]:xf,axes[yf]:yf},hover_data=['match_id','phase_index'],opacity=.7,title='Tracking measurements by tactic')),width='stretch')
-  st.plotly_chart(style(px.box(view,x='Tactic',y='duration',color='Tactic',color_discrete_map=COLORS,labels={'duration':'Phase duration (seconds)'},title='How long does each type of phase last?')).update_layout(showlegend=False),width='stretch')
-  match=st.selectbox('View one match',sorted(view.match_id.unique()),format_func=lambda v:f'Match {v}')
-  timeline=view[view.match_id==match].sort_values('match_minute')
-  st.plotly_chart(style(px.scatter(timeline,x='match_minute',y='Tactic',color='Tactic',color_discrete_map=COLORS,hover_data=['phase_index','duration'],labels={'match_minute':'Match minute'},title='Attacking phases through the match')).update_layout(showlegend=False),width='stretch')
- else: st.info('Choose at least one tactic to show its phases.')
-with research:
- st.subheader('My research')
- st.write('Machine Learning-Based Classification of Soccer Attacking Phases Using Spatiotemporal Tracking Features')
- st.write('This project uses SkillCorner open tracking data from 10 Australian A-League matches to distinguish build-up, creation, direct attack, fast transition, and finishing.')
- st.write('The labels came from SkillCorner’s AI-based Phases of Play system. My model attempts to reproduce those labels using a smaller set of tracking features; they are not independent labels created by coaches for this project.')
- st.subheader('Results reported in the paper')
+else:
+ st.header('What did the paper find?')
+ st.write('The results below are transcribed from the supplied paper. Accuracy and macro F1 answer different questions, so the model with the highest accuracy is not necessarily strongest across all five tactics.')
  results=pd.DataFrame({'Model':['Original Random Forest','Enhanced Random Forest','Original XGBoost','Enhanced XGBoost','SVC','MLP','KNN'],'Accuracy':[.912,.912,.914,.919,.879,.858,.756],'Macro F1':[.863,.873,.870,.864,.825,.790,.649]})
- metric=st.radio('Compare models using',['Accuracy','Macro F1'],horizontal=True)
- st.caption('Accuracy counts all correct predictions. Macro F1 gives each tactic equal weight and balances precision with recall.')
- ordered=results.sort_values(metric)
- fig=style(px.bar(ordered,x=metric,y='Model',orientation='h',text=metric,range_x=[0,1],color_discrete_sequence=['#285943'],title='Model comparison · reported in the paper'))
+ metric=st.radio('Compare models by',['Accuracy','Macro F1'],horizontal=True)
+ st.write('**Accuracy:** the fraction of all test phases labeled correctly.' if metric=='Accuracy' else '**Macro F1:** precision and recall are combined for each tactic, then the five scores are averaged equally. This gives rare tactics as much weight as common ones.')
+ fig=px.bar(results.sort_values(metric),x=metric,y='Model',orientation='h',text=metric,range_x=[0,1],title=f'Paper results · {metric}',color_discrete_sequence=['#285943'])
  fig.update_traces(texttemplate='%{x:.1%}' if metric=='Accuracy' else '%{x:.3f}')
  if metric=='Accuracy': fig.update_xaxes(tickformat='.0%')
- st.plotly_chart(fig,width='stretch')
+ chart(fig,'model_comparison')
+ st.caption('Source: Results and Discussion. Original = 14 inputs; enhanced = 18 inputs. Every model uses the same match-based train/test split.')
+ st.subheader('Why overall accuracy is not the whole story')
  f1=pd.DataFrame({'Tactic':list(NAMES.values()),'F1':[.98,.92,.91,.59,.91]})
- st.plotly_chart(style(px.bar(f1,x='Tactic',y='F1',text='F1',range_y=[0,1],color_discrete_sequence=['#2563a0'],title='Enhanced XGBoost: F1 for each tactic · paper results')),width='stretch')
- st.caption('Source: Results and Discussion. These are the original paper’s scores, not scores recalculated for the app model.')
- st.write('Enhanced XGBoost had the highest accuracy (91.9%). Enhanced Random Forest had the highest macro F1 (0.873), which gives each tactic equal weight. Fast transition was the hardest category: the paper reports 13 correct predictions out of 25 test examples.')
- st.subheader('Model running in this app')
- st.write(f"The deployed XGBoost model was retrained from the supplied notebook configuration on {meta['train_phases']:,} phases. Matches 2015213 and 1899585 were held out entirely for evaluation ({meta['test_phases']:,} phases). The scores above were recomputed for this deployed model.")
- st.write('Read the grid by row: the row is the supplied label, and the column is the model’s prediction. Numbers on the diagonal are correct predictions.')
- st.plotly_chart(style(px.imshow(meta['confusion'],x=[NAMES[c] for c in classes],y=[NAMES[c] for c in classes],text_auto=True,labels={'x':'Predicted tactic','y':'Reference tactic','color':'Phases'},color_continuous_scale='Greens',title='App model: predictions on 567 test phases')),width='stretch')
- importance=pd.DataFrame({'Feature':[f.replace('_',' ').capitalize() for f in features],'Importance':m.feature_importances_}).sort_values('Importance').tail(10)
- st.plotly_chart(style(px.bar(importance,x='Importance',y='Feature',orientation='h',color_discrete_sequence=['#a67416'],title='App model: ten highest feature importance scores')),width='stretch')
- st.caption('XGBoost feature importance measures how the trained trees use each input. It does not establish cause and effect or explain one specific prediction.')
- st.write('The 18 features describe ball position and progress, attacking and defending shape, nearby defenders, phase timing, and progress speed. Match and phase identifiers are excluded from training inputs.')
- st.subheader('Limitations and next steps')
- st.write('The study covers 10 matches from one league. Averaging features across each phase loses the order of player and ball movements. More matches, other leagues, and sequence-based models would help test how well the approach generalizes.')
- st.caption('Based on the local paper draft TS8_ Final Research Paper Task Sheet-4.pdf, sections 2–7.')
- st.markdown('[SkillCorner open data](https://github.com/SkillCorner/opendata)')
+ fig=px.bar(f1,x='F1',y='Tactic',orientation='h',text='F1',range_x=[0,1],title='Paper: Enhanced XGBoost score for each tactic',color_discrete_sequence=['#426b99']);chart(fig,'f1')
+ st.write('The paper reports **13 of 25 fast transitions identified correctly**, versus all 117 build-up phases. Fast transitions were often confused with creation or finishing. They had fewer training examples, and phase averages lose the sequence of events that distinguishes a transition from an established attack.')
+ st.caption('F1 is not the percentage correctly classified: it combines precision and recall. Source: Results and Discussion, Figure 3 discussion.')
+ st.subheader('Which measurements mattered?')
+ importance=pd.DataFrame({'Measurement':['Ball starting position','Sampled frames','Ball progress','Attackers ahead of the ball'],'Importance':[.1961,.1187,.1124,.1018]})
+ chart(px.bar(importance,x='Importance',y='Measurement',orientation='h',text='Importance',title='Four feature-importance values reported in the paper',color_discrete_sequence=['#8c6d35']),'importance')
+ st.write('These scores describe how the trained XGBoost trees use the inputs. They do not show cause and effect or explain one specific prediction. The paper also reports that shuffling ball starting position and progress had the largest effects on model performance.')
+ with st.expander('Feature removal, validation, and tuning'):
+  st.write('Removing weaker measurements produced only small changes. The paper does not establish that fewer features are clearly better.')
+  ab=pd.DataFrame({'Inputs retained':[14,12,11,9],'Accuracy':[.912,.910,.910,.912],'Macro F1':[.863,.858,.861,.867]})
+  st.dataframe(ab,hide_index=True,width='stretch')
+  st.write('Across five match-based GroupKFold splits, average accuracy was around 91% and macro F1 around 0.85. The paper reports variation between matches; it does not provide exact fold scores in its prose.')
+  st.write('Randomized Search tested 25 parameter combinations across five folds. The best validation macro F1 was 0.884. This is a validation score, not a new held-out test result.')
+  st.caption('Best reported settings: 400 trees; depth 7; learning rate 0.03; row and column sampling 0.8; minimum child weight 5; regularization 1.')
+ with st.expander('How the live app model differs from the paper'):
+  st.write(f"The explorer uses a retrained XGBoost model with {meta['accuracy']:.1%} accuracy and {meta['macro_f1']:.3f} macro F1 on the 567 test phases. The paper’s Enhanced XGBoost scores are 91.9% and 0.864. Do not substitute app scores for the paper’s results.")
+  chart(px.imshow(meta['confusion'],x=[NAMES[c] for c in classes],y=[NAMES[c] for c in classes],text_auto=True,labels={'x':'App prediction','y':'Supplied label','color':'Phases'},color_continuous_scale='Greens',title='Retrained app model · test-phase confusion matrix'),'confusion')
+  st.caption('Read by row: supplied labels on the left, predictions along the bottom. Diagonal cells are matches. This matrix belongs to the app model, not the original paper.')
+ st.subheader('What the results do—and do not—support')
+ st.write('The study shows that phase summaries can reproduce SkillCorner’s labels with strong overall accuracy in these matches. The labels themselves were generated by SkillCorner’s system, rather than independently assigned by coaches for this study.')
+ st.write('Only 10 matches from one league were studied. More teams and leagues are needed to assess generalization. Keeping the full sequence of player and ball movements could help distinguish rapidly changing tactics. The paper also proposes exploring score difference and the preceding tactic.')
+ st.caption('Source: supplied paper, sections 5–7. Research acknowledgements: Omar Ramos Escoto, Inspirit AI, and SkillCorner.')
