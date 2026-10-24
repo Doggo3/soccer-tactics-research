@@ -13,6 +13,13 @@ st.markdown('''<style>
 .block-container{max-width:1050px;padding-top:4rem;padding-bottom:4rem;}
 h1{font-size:2.25rem!important;line-height:1.2!important;}
 p,li{font-size:17px;line-height:1.65;}
+.hero{background:#173e32;color:#fff;padding:28px 30px;border-radius:14px;margin-bottom:24px;border-left:6px solid #d7c17b;}
+.hero h2{color:#fff!important;margin:0!important;font-size:28px!important;}
+.hero p{color:#dce9e1;margin-bottom:0;}
+[data-testid="stCaptionContainer"]{opacity:1!important;}
+[data-testid="stCaptionContainer"] p{color:#44544a!important;}
+[data-testid="stButton"] button{min-height:44px;}
+
 [data-testid="stMetric"]{padding:14px;background:#eef4ef;border-radius:8px;}
 [data-testid="stCaptionContainer"] p{color:#526057;}
 </style>''',unsafe_allow_html=True)
@@ -60,7 +67,7 @@ st.caption('Jack Chiang · Research companion')
 st.title('Machine Learning-Based Classification of Soccer Attacking Phases')
 st.markdown('**Using Spatiotemporal Tracking Features**')
 page=st.radio('Explore the research',['1 · Understand the study','2 · Inspect real phases','3 · Compare the results'],horizontal=True,label_visibility='collapsed')
-st.divider()
+st.markdown('<div class="hero"><h2>'+({'1':'Read the game through data','2':'Inside one attacking phase','3':'Put the models to the test'}[page[0]])+'</h2><p>'+({'1':'Discover the five labels, then investigate the real examples behind them.','2':'Choose a case. Inspect the evidence. Explore how the model responds.','3':'Compare performance and see where classification becomes difficult.'}[page[0]])+'</p></div>',unsafe_allow_html=True)
 if page.startswith('1'):
  st.header('Can tracking measurements identify an attacking phase?')
  st.write('Coaches and analysts often identify tactics by watching matches. My paper tests whether measurements of the players and ball can help classify short sections of an attack into five categories.')
@@ -98,42 +105,76 @@ elif page.startswith('2'):
  pool=data[data.tactic_label==label]
  if mode!='All': pool=pool[pool.correct==(mode=='Model matches label')]
  st.write('**'+NAMES[label]+':** '+DEFS[label])
- st.caption(f'{len(pool)} matching test phases. A “supplied label” is SkillCorner’s reference classification, not an independent coach assessment.')
+ st.caption(f'{len(pool)} test phases in this selection. A “supplied label” is SkillCorner’s reference classification, not an independent coach assessment.')
  if pool.empty:
   st.info('No phases match this filter. Select “All” to inspect this tactic.')
  else:
-  idx=st.selectbox('2. Choose a phase',pool.index.tolist(),format_func=lambda i:f"Match {int(data.loc[i,'match_id'])} · phase {int(data.loc[i,'phase_index'])} · minute {data.loc[i,'match_minute']:.1f}")
+  options=pool.index.tolist()
+  selection_key=f'phase_choice_{label}_{mode}'
+  if st.session_state.get(selection_key) not in options: st.session_state[selection_key]=options[0]
+  position=options.index(st.session_state[selection_key])
+  nav1,nav2,nav3=st.columns([1,2,1])
+  if nav1.button('← Previous',disabled=position==0): st.session_state[selection_key]=options[position-1]
+  nav2.caption(f'Browse {len(options)} real test phases · use the buttons or pick an ID below')
+  if nav3.button('Next →',disabled=position==len(options)-1): st.session_state[selection_key]=options[position+1]
+  idx=st.selectbox('2. Choose a phase',options,key=selection_key,format_func=lambda i:f"Match {int(data.loc[i,'match_id'])} · phase {int(data.loc[i,'phase_index'])} · minute {data.loc[i,'match_minute']:.1f}")
   row=data.loc[idx];prob=all_probs[idx];winner=row.prediction
   a,b=st.columns(2);a.metric('Supplied label',NAMES[label]);b.metric('App prediction',NAMES[winner])
   st.write('The app model **'+('matches' if row.correct else 'differs from')+'** the supplied label for this phase.')
+  rank=np.argsort(prob)[::-1]
+  st.info(f"The model gives {NAMES[classes[rank[0]]]} {prob[rank[0]]:.1%} probability and {NAMES[classes[rank[1]]]} {prob[rank[1]]:.1%}. "+('The top choice matches the supplied label.' if row.correct else 'This is a useful error case: inspect the overlapping measurements below.'))
+  activity=st.radio('What would you like to investigate?',['Read this phase','Change an input'],horizontal=True)
   st.subheader('Measurements behind this example')
   a,b,c=st.columns(3);a.metric('Duration',f'{row.duration:.1f} s');b.metric('Signed x progress',f'{row.ball_progress_m:+.1f} m');c.metric('Attacking width',f'{row.attack_width_mean:.1f} m')
   st.caption('Progress is displacement along the stored x-axis. Width is the team’s average side-to-side spread. These summaries do not show the order of movement.')
-  scores=pd.DataFrame({'Tactic':[NAMES[c] for c in classes],'Model probability':prob})
-  fig=px.bar(scores,x='Model probability',y='Tactic',orientation='h',text='Model probability',range_x=[0,1],title='How the app model scores this phase',color_discrete_sequence=['#285943'])
-  fig.update_traces(texttemplate='%{x:.1%}');fig.update_xaxes(tickformat='.0%');chart(fig,'probabilities')
-  st.caption('The highest score determines the predicted label. These are model probabilities, not guarantees or an explanation of why a prediction was made.')
-  st.subheader('How does this phase compare with other phases?')
   choices=['duration','ball_x_start','ball_progress_m','attack_width_mean','attackers_ahead_of_ball_mean']
-  f=st.selectbox('Compare one measurement',choices,format_func=lambda x:FIELDS[x][0])
-  title,unit,meaning=FIELDS[f];st.write(meaning)
-  view=data.assign(Tactic=data.tactic_label.map(NAMES))
-  fig=px.box(view,x=f,y='Tactic',orientation='h',category_orders={'Tactic':list(NAMES.values())},labels={f:f'{title} ({unit})'},title=f'{title} across all 567 test phases',color_discrete_sequence=['#819b8a'])
-  fig.add_vline(x=float(row[f]),line_color='#a4471a',line_width=3,line_dash='dash',annotation_text=f'Selected phase: {row[f]:.1f} {unit}',annotation_position='top')
-  chart(fig,'distribution')
-  st.caption('The line inside each box is the median; the box contains the middle half of the values. The orange dashed line marks your selected phase. Overlapping boxes show why one measurement alone cannot define a tactic.')
-  with st.expander('See all 18 measurements and their meanings'):
-   st.dataframe(values_table(row),hide_index=True,width='stretch')
-  with st.expander('Optional experiment: change one model input'):
+  if activity=='Read this phase':
+   scores=pd.DataFrame({'Tactic':[NAMES[c] for c in classes],'Model probability':prob})
+   fig=px.bar(scores,x='Model probability',y='Tactic',orientation='h',text='Model probability',range_x=[0,1],title='How the app model scores this phase',color_discrete_sequence=['#285943'])
+   fig.update_traces(texttemplate='%{x:.1%}');fig.update_xaxes(tickformat='.0%');chart(fig,'probabilities')
+   st.caption('The highest score determines the predicted label. These are model probabilities, not guarantees or an explanation of why a prediction was made.')
+   st.subheader('How does this phase compare with other phases?')
+   choices=['duration','ball_x_start','ball_progress_m','attack_width_mean','attackers_ahead_of_ball_mean']
+   f=st.selectbox('Compare one measurement',choices,format_func=lambda x:FIELDS[x][0])
+   title,unit,meaning=FIELDS[f];st.write(meaning)
+   view=data.assign(Tactic=data.tactic_label.map(NAMES))
+   fig=px.box(view,x=f,y='Tactic',orientation='h',category_orders={'Tactic':list(NAMES.values())},labels={f:f'{title} ({unit})'},title=f'{title} across all 567 test phases',color_discrete_sequence=['#819b8a'])
+   fig.add_vline(x=float(row[f]),line_color='#a4471a',line_width=3,line_dash='dash',annotation_text=f'Selected phase: {row[f]:.1f} {unit}',annotation_position='top')
+   chart(fig,'distribution')
+   st.caption('The line inside each box is the median; the box contains the middle half of the values. The orange dashed line marks your selected phase. Overlapping boxes show why one measurement alone cannot define a tactic.')
+   with st.expander('See all 18 measurements and their meanings'):
+    st.dataframe(values_table(row),hide_index=True,width='stretch')
+  if activity=='Change an input':
+   st.subheader('See the model respond')
    st.write('This is a sensitivity check: how does the model respond if one measurement changes? It is not a simulation of how players would react. All other inputs stay fixed, except progress speed is recalculated when duration or progress changes.')
-   field=st.selectbox('Measurement to change',choices,format_func=lambda x:FIELDS[x][0],key='experiment_field')
+   field=st.selectbox('Measurement to change',choices,format_func=lambda x:FIELDS[x][0],key='experiment_field',index=1)
    st.write(FIELDS[field][2])
    low,high=float(data[field].min()),float(data[field].max())
+   experiment_key=f'experiment_{idx}_{field}'
+   if st.button('Restore original value'): st.session_state.pop(experiment_key,None)
    val=st.slider(f'{FIELDS[field][0]} ({FIELDS[field][1]})',low,high,float(row[field]),key=f'experiment_{idx}_{field}')
    altered=row[features].astype(float).copy();altered[field]=val
    if field in ['duration','ball_progress_m']: altered['progress_speed_mps']=altered.ball_progress_m/altered.duration
    new=m.predict_proba(pd.DataFrame([altered],columns=features))[0];newlabel=classes[int(new.argmax())]
+   st.caption(f'Input change: {row[field]:.2f} → {val:.2f} {FIELDS[field][1]}')
+   if np.isclose(val,float(row[field])):
+    st.info('Move the slider to test a different value. The current value is the original measurement.')
+   elif newlabel==winner:
+    st.info(f'The input changed, but the top prediction is still {NAMES[winner]}. A tree model can keep the same answer across a range of values. The curve below shows its response across the full slider range.')
+   else:
+    st.success(f'The top prediction changed from {NAMES[winner]} to {NAMES[newlabel]}.')
    st.write(f'**Original prediction: {NAMES[winner]} → changed-input prediction: {NAMES[newlabel]}**')
+   sweep=np.linspace(low,high,80)
+   sweep_x=pd.DataFrame([row[features].astype(float).to_dict() for _ in sweep])
+   sweep_x[field]=sweep
+   if field in ['duration','ball_progress_m']: sweep_x['progress_speed_mps']=sweep_x.ball_progress_m/sweep_x.duration
+   sweep_p=m.predict_proba(sweep_x[features])
+   response=pd.DataFrame(sweep_p,columns=[NAMES[c] for c in classes]);response[FIELDS[field][0]]=sweep
+   fig=px.line(response.melt(id_vars=FIELDS[field][0],var_name='Tactic',value_name='Probability'),x=FIELDS[field][0],y='Probability',color='Tactic',color_discrete_map=COLORS,range_y=[0,1],title='Where does the model change its mind?',labels={FIELDS[field][0]:f'{FIELDS[field][0]} ({FIELDS[field][1]})'})
+   fig.update_traces(line_shape='hv');fig.update_yaxes(tickformat='.0%')
+   fig.add_vline(x=val,line_dash='dash',line_color='#17251c',annotation_text='Your value',annotation_position='top')
+   chart(fig,'response_curve')
+   st.caption('Each line is one tactic’s probability at 80 sampled input values. The dashed line is your selection. Hover for scores; click a legend label to hide a tactic. These are hypothetical model responses, not observed match outcomes.')
    comp=pd.DataFrame({'Tactic':[NAMES[c] for c in classes],'Original probability':prob,'Changed probability':new})
    fig=px.bar(comp.melt(id_vars='Tactic',var_name='Version',value_name='Probability'),x='Tactic',y='Probability',color='Version',barmode='group',range_y=[0,1],title='Original and changed-input scores',color_discrete_map={'Original probability':'#a3b6aa','Changed probability':'#285943'})
    fig.update_yaxes(tickformat='.0%');chart(fig,'experiment')
