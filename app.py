@@ -114,9 +114,13 @@ elif page.startswith('2'):
   if st.session_state.get(selection_key) not in options: st.session_state[selection_key]=options[0]
   position=options.index(st.session_state[selection_key])
   nav1,nav2,nav3=st.columns([1,2,1])
-  if nav1.button('← Previous',disabled=position==0): st.session_state[selection_key]=options[position-1]
+  if nav1.button('← Previous',disabled=position==0):
+   st.session_state[selection_key]=options[position-1]
+   st.rerun()
   nav2.caption(f'Browse {len(options)} real test phases · use the buttons or pick an ID below')
-  if nav3.button('Next →',disabled=position==len(options)-1): st.session_state[selection_key]=options[position+1]
+  if nav3.button('Next →',disabled=position==len(options)-1):
+   st.session_state[selection_key]=options[position+1]
+   st.rerun()
   idx=st.selectbox('2. Choose a phase',options,key=selection_key,format_func=lambda i:f"Match {int(data.loc[i,'match_id'])} · phase {int(data.loc[i,'phase_index'])} · minute {data.loc[i,'match_minute']:.1f}")
   row=data.loc[idx];prob=all_probs[idx];winner=row.prediction
   a,b=st.columns(2);a.metric('Supplied label',NAMES[label]);b.metric('App prediction',NAMES[winner])
