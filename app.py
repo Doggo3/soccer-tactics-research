@@ -25,12 +25,13 @@ def load():
  return m,json.loads((P/'metadata.json').read_text()),pd.read_csv(P/'examples.csv')
 m,meta,examples=load();features=meta['features'];classes=meta['classes']
 st.caption('Jack Chiang · Soccer tactics research')
-st.title('Classifying Soccer Attacking Phases')
+st.title('Machine Learning-Based Classification of Soccer Attacking Phases')
+st.markdown('### Using Spatiotemporal Tracking Features')
 st.write('I tested whether player and ball tracking data could identify five types of attack. This app lets you try the model on real phases and see how changing the inputs affects its prediction.')
 a,b,c,d=st.columns(4)
 a.metric('Attacking phases','2,955');b.metric('Matches','10');c.metric('App model accuracy',f"{meta['accuracy']:.1%}");d.metric('App model macro F1',f"{meta['macro_f1']:.3f}")
-st.caption('The app uses a retrained XGBoost model. Results reported in the paper are shown in the Research tab.')
-overview,predict,explore,research=st.tabs(['Start here','Try the model','Explore the data','Paper results'])
+st.caption('The app uses a retrained XGBoost model. Results reported in the paper are shown in the Paper results tab.')
+predict,challenge,explore,research,overview=st.tabs(['Tactics playground','Guess the tactic','Explore the data','Paper results','About the study'])
 with overview:
  st.subheader('What does this project do?')
  st.write('A soccer attack can develop in several ways. I trained machine-learning models to recognize five types of attacking phase from measurements of the players and ball.')
@@ -46,7 +47,7 @@ with overview:
  st.subheader('What I found')
  st.write('In my paper, Enhanced XGBoost classified 91.9% of test phases correctly—about 92 out of 100. Enhanced Random Forest scored best when all five tactics were weighted equally. Fast transitions were hardest to identify, partly because there were only 132 examples in the dataset.')
  st.write('The study used 2,955 phases from 10 Australian A-League matches. Eight matches were used to train the models, and two different matches were used to test them.')
- st.info('To try it: open Try the model, pick an example, and look at the prediction. You can change the measurements and press Predict tactic to see what happens. No upload is needed.')
+ st.info('To try it: open Tactics playground, pick an example, and move the sliders. The prediction updates automatically. No upload is needed.')
  st.caption('The app uses numerical tracking features, not video. Its labels come from SkillCorner’s existing system. It identifies the type of attack; it does not choose a tactic for a coach.')
 with predict:
  st.subheader('Change a phase. See what the model predicts.')
@@ -58,11 +59,19 @@ with predict:
  left,right=st.columns([1,1.25])
  fields=[('ball_x_start','Ball starting position (meters)','Zero is midfield; values use the original tracking coordinate system.'),('ball_progress_m','Ball movement along the field (meters)','Signed change in ball x position, not total distance traveled.'),('duration','Length of the phase (seconds)','Changing this also updates progress speed.'),('attack_width_mean','Attacking team width (meters)','Average side-to-side spread of the attacking team.'),('attackers_ahead_of_ball_mean','Attackers ahead of the ball','Average count across the phase, so fractions are possible.')]
  with left:
+  st.markdown('**Try a quick change**')
+  quick=st.columns(3)
+  if quick[0].button('Wider attack',use_container_width=True):
+   st.session_state[f'slider_{idx}_attack_width_mean']=float(examples.attack_width_mean.quantile(.9))
+  if quick[1].button('Shorter phase',use_container_width=True):
+   st.session_state[f'slider_{idx}_duration']=float(examples.duration.quantile(.1))
+  if quick[2].button('Near midfield',use_container_width=True):
+   st.session_state[f'slider_{idx}_ball_x_start']=0.
   if st.button('Reset this example'):
    for f,_,_ in fields: st.session_state.pop(f'slider_{idx}_{f}',None)
   for f,title,help_text in fields:
    low=float(examples[f].min());high=float(examples[f].max());v=float(original[f])
-   values[f]=st.slider(title,min_value=low,max_value=high,value=v,key=f'slider_{idx}_{f}',help=help_text)
+   values[f]=st.slider(title,min_value=low,max_value=high,value=None if f'slider_{idx}_{f}' in st.session_state else v,key=f'slider_{idx}_{f}',help=help_text)
  values['progress_speed_mps']=values['ball_progress_m']/values['duration'] if values['duration']>0 else 0.
  with right:
   st.plotly_chart(pitch(values),width='stretch')
@@ -70,6 +79,12 @@ with predict:
  x=pd.DataFrame([values],columns=features);probs=m.predict_proba(x)[0];baseline=m.predict_proba(pd.DataFrame([original],columns=features))[0]
  winner=classes[int(probs.argmax())]
  st.subheader('Prediction: '+NAMES[winner])
+ old_winner=classes[int(baseline.argmax())]
+ score,shift,speed=st.columns(3)
+ score.metric('Model probability',f'{probs.max():.1%}',f'{probs.max()-baseline[probs.argmax()]:+.1%} vs original')
+ shift.metric('Original prediction',NAMES[old_winner])
+ speed.metric('Signed progress speed',f"{values['progress_speed_mps']:.1f} m/s")
+ if winner!=old_winner: st.success(f'The prediction changed from {NAMES[old_winner]} to {NAMES[winner]}.')
  st.caption('Original example label: '+NAMES[label]+'. The other model inputs stay at their original values. Slider changes are hypothetical, and some combinations may be unrealistic.')
  chart=pd.DataFrame({'Tactic':[NAMES[c] for c in classes]*2,'Probability':list(baseline)+list(probs),'Version':['Original example']*5+['Your changes']*5})
  fig=style(px.bar(chart,x='Probability',y='Tactic',color='Version',barmode='group',orientation='h',color_discrete_map={'Original example':'#b7c8be','Your changes':'#285943'},range_x=[0,1],title='How the prediction changes'))
@@ -78,6 +93,34 @@ with predict:
  st.caption('Scores are model probabilities, not guarantees. This identifies a type of attack; it does not decide which tactic a coach should use.')
  with st.expander('See all 18 inputs'):
   st.dataframe(pd.DataFrame({'Original':original,'Your changes':values}),width='stretch')
+
+with challenge:
+ st.subheader('Can you spot the tactic?')
+ st.write('Read a real test phase, make your guess, then compare it with the supplied label and the model. This is a feature-reading challenge, not match footage.')
+ if 'round_number' not in st.session_state: st.session_state.round_number=0
+ if 'quiz_answers' not in st.session_state: st.session_state.quiz_answers={}
+ round_id=st.session_state.round_number
+ quiz_index=int(np.random.default_rng(2026+round_id).integers(len(examples)))
+ sample=examples.iloc[quiz_index]
+ q1,q2,q3=st.columns(3)
+ q1.metric('Ball start',f"{sample.ball_x_start:.1f} m")
+ q2.metric('Signed ball progress',f"{sample.ball_progress_m:.1f} m")
+ q3.metric('Phase duration',f"{sample.duration:.1f} s")
+ st.plotly_chart(pitch(sample),width='stretch',key='quiz_pitch')
+ st.caption('Illustrative x-axis replay. The animation interpolates between phase endpoints; it does not reconstruct actual movement or player positions.')
+ guess=st.radio('Your guess',classes,format_func=lambda x:NAMES[x],horizontal=True,key=f'guess_{round_id}')
+ if st.button('Reveal the answer',type='primary') and round_id not in st.session_state.quiz_answers:
+  st.session_state.quiz_answers[round_id]=guess==sample.tactic_label
+ if round_id in st.session_state.quiz_answers:
+  correct=st.session_state.quiz_answers[round_id]
+  (st.success if correct else st.info)('Correct! Reference label: '+NAMES[sample.tactic_label] if correct else 'Reference label: '+NAMES[sample.tactic_label])
+  qp=m.predict_proba(pd.DataFrame([sample[features].astype(float)],columns=features))[0]
+  st.write(f"Model guess: **{NAMES[classes[int(qp.argmax())]]}** ({qp.max():.1%} probability). Reference labels come from SkillCorner's system.")
+  st.caption('Your score: '+str(sum(st.session_state.quiz_answers.values()))+' / '+str(len(st.session_state.quiz_answers))+' revealed phases. Your first revealed answer counts.')
+ if st.button('Next phase →'):
+  st.session_state.round_number+=1
+  st.rerun()
+
 with explore:
  st.subheader('What does the data look like?')
  st.write('Each dot below is one attacking phase from the two held-out test matches. Hover over it to see the match and phase.')

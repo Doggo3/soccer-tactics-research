@@ -14,6 +14,9 @@ def pitch(row):
   fig.add_shape(type='rect',x0=sign*55,y0=-20,x1=sign*38.5,y1=20,line_color='white')
  x=float(row['ball_x_start']);end=x+float(row['ball_progress_m'])
  fig.add_trace(go.Scatter(x=[x,end],y=[0,0],mode='lines+markers+text',text=['Start','End'],textposition=['top center','bottom center'],line=dict(color='#ffe18b',width=5),marker=dict(size=13,color='#ffe18b'),name='Ball x position',hovertemplate='x = %{x:.1f} m<extra></extra>'))
- fig.update_layout(height=310,showlegend=False,margin=dict(l=10,r=10,t=10,b=10),paper_bgcolor='white',plot_bgcolor='#367558',font=dict(color='#17251c',size=15))
+ fig.add_trace(go.Scatter(x=[x],y=[0],mode='markers',marker=dict(size=23,color='white',line=dict(color='#17251c',width=3)),hoverinfo='skip',name='Replay ball'))
+ fig.frames=[go.Frame(data=[go.Scatter(x=[x+(end-x)*i/30],y=[0])],traces=[1],name=str(i)) for i in range(31)]
+ fig.update_layout(updatemenus=[dict(type='buttons',direction='left',x=0,y=-.03,buttons=[dict(label='▶ Replay phase',method='animate',args=[None,dict(frame=dict(duration=90,redraw=False),transition=dict(duration=0),fromcurrent=False)]),dict(label='↺ Reset',method='animate',args=[['0'],dict(mode='immediate',frame=dict(duration=0,redraw=False),transition=dict(duration=0))])])])
+ fig.update_layout(height=380,showlegend=False,margin=dict(l=10,r=10,t=10,b=65),paper_bgcolor='white',plot_bgcolor='#367558',font=dict(color='#17251c',size=15))
  fig.update_xaxes(range=[min(-58,x-5,end-5),max(58,x+5,end+5)],visible=False);fig.update_yaxes(range=[-38,38],visible=False,scaleanchor='x')
  return fig
