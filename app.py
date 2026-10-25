@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from xgboost import XGBClassifier
 from visuals import NAMES, COLORS, style
+from teaching import render as render_teaching
 
 P=Path(__file__).parent
 st.set_page_config(page_title='Soccer Attacking Phases | Jack Chiang',layout='wide')
@@ -77,25 +78,8 @@ if page.startswith('1'):
  st.write('An attack can change character: a team may build from the back, work for an opening, or rush forward after winning the ball. A phase is a short section of play given one of these labels. The five labels are categories, not five steps every attack must follow.')
  st.subheader('Start with a soccer example')
  tactic=st.selectbox('Choose a label to learn about',classes,format_func=lambda x:NAMES[x])
- stories={
- 'build_up':('A team has possession deep in its own half and moves the ball out from the back.','Build-up describes establishing the attack.',[(12,24),(25,38),(38,29)]),
- 'creation':('A team already has possession and moves the ball around to look for an opening.','Creation describes developing a chance.',[(55,20),(67,40),(77,28)]),
- 'direct_attack':('A team sends the ball a long way forward quickly instead of using a patient series of passes.','Direct attack describes a quick route forward; it does not by itself tell you when possession was won.',[(25,25),(73,35),(88,28)]),
- 'fast_transition':('A team wins possession and immediately attacks before the opponent can reorganize.','The key context is the change of possession. A fast forward attack is not automatically a fast transition.',[(40,37),(61,29),(82,38)]),
- 'finishing':('An attack reaches its final action near the opponent’s goal, such as preparing a shot.','Finishing describes the end of an attacking move, not necessarily a goal.',[(77,42),(87,30),(98,30)])}
- story,lesson,points=stories[tactic]
- st.markdown('### '+NAMES[tactic]);st.write(story)
- fig=go.Figure()
- fig.add_shape(type='rect',x0=0,y0=0,x1=105,y1=68,line_color='white',fillcolor='#285943')
- fig.add_shape(type='line',x0=52.5,y0=0,x1=52.5,y1=68,line_color='white')
- fig.add_shape(type='circle',x0=43.35,y0=24.85,x1=61.65,y1=43.15,line_color='white')
- for x0,x1 in [(0,16.5),(88.5,105)]: fig.add_shape(type='rect',x0=x0,y0=13.84,x1=x1,y1=54.16,line_color='white')
- for (x,y),(nx,ny) in zip(points,points[1:]): fig.add_annotation(x=nx,y=ny,ax=x,ay=y,xref='x',yref='y',axref='x',ayref='y',showarrow=True,arrowhead=3,arrowwidth=4,arrowcolor='#f4cd63')
- fig.add_trace(go.Scatter(x=[v[0] for v in points],y=[v[1] for v in points],mode='markers+text',marker=dict(size=24,color='#f4cd63'),text=['1','2','3'],textposition='middle center',textfont=dict(color='#173e32'),hoverinfo='skip'))
- fig.update_layout(height=340,margin=dict(l=10,r=10,t=35,b=10),title='Illustration · attack moves left to right',showlegend=False,paper_bgcolor='white',plot_bgcolor='white',xaxis=dict(range=[-2,107],visible=False,fixedrange=True),yaxis=dict(range=[-2,70],visible=False,scaleanchor='x',scaleratio=1,fixedrange=True))
- st.plotly_chart(fig,width='stretch',config={'displayModeBar':False},key='concept_pitch')
- st.caption('Illustration only: the numbered points show an imagined ball route. This is not match footage, recorded tracking, or a model prediction.')
- st.write('**What to notice:** '+lesson)
+ st.markdown('### '+NAMES[tactic]);st.write(DEFS[tactic])
+ render_teaching(tactic)
  st.subheader('What does the paper ask?')
  st.write('Can a computer identify these categories from measurements of the ball and players? Each example becomes a row of 18 numbers, including duration, team width, and ball position. The model chooses one label, which is compared with the label already supplied by SkillCorner.')
  a,b,c=st.columns(3);a.metric('Matches studied','10');b.metric('Sections of play','2,955');c.metric('Inputs per example','18')
