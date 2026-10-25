@@ -41,7 +41,11 @@ def scope_note():
 
 st.title('Classifying soccer attacking phases')
 st.caption('Machine Learning-Based Classification of Soccer Attacking Phases Using Spatiotemporal Tracking Features')
-page=st.radio('Section',['The study','Classify a phase','Explore the data','Results & method'],horizontal=True,key='page',label_visibility='collapsed')
+SECTIONS={'study':'The study','classify':'Classify a phase','data':'Explore the data','results':'Results & method','paper':'Paper'}
+if 'page' not in st.session_state:st.session_state.page=SECTIONS.get(st.query_params.get('section','study'),'The study')
+page=st.radio('Section',list(SECTIONS.values()),horizontal=True,key='page',label_visibility='collapsed')
+slug=next(k for k,v in SECTIONS.items() if v==page)
+if st.query_params.get('section')!=slug:st.query_params['section']=slug
 st.divider()
 
 if page=='The study':
@@ -51,7 +55,9 @@ if page=='The study':
  a.markdown('<div class="step"><strong>1. Measure a phase</strong><p>Summarize one section of play using 18 inputs: position, team shape, pressure, and timing.</p></div>',unsafe_allow_html=True)
  b.markdown('<div class="step"><strong>2. Predict its label</strong><p>XGBoost scores the five possible categories and selects the highest-scoring one.</p></div>',unsafe_allow_html=True)
  c.markdown('<div class="step"><strong>3. Check the answer</strong><p>Compare the prediction with SkillCorner’s existing label for that recorded phase.</p></div>',unsafe_allow_html=True)
- st.button('Try classifying a real phase',type='primary',on_click=goto,args=('Classify a phase',))
+ a,b=st.columns(2)
+ a.button('Try classifying a real phase',type='primary',on_click=goto,args=('Classify a phase',))
+ b.button('Read the paper',on_click=goto,args=('Paper',))
  st.subheader('Five labels, five different meanings')
  for c in classes:st.markdown('**'+NAMES[c]+'** — '+DEFS[c])
  st.write('**A key distinction:** direct attack describes quick forward movement; fast transition also needs the context of a recent change of possession. These labels are categories, not five steps every attack must follow.')
@@ -134,6 +140,34 @@ elif page=='Explore the data':
    st.write('The CSV has 2,955 rows, 10 matches, no missing values, and no duplicate match/phase identifiers. Each row summarizes a labeled phase; there are no player paths or videos in this file.')
    st.write('Some stored progress-speed values are extreme (−252.5 to +190.0 m/s). Signed progress divided by duration reproduces them, but the original extraction code is not supplied, so they should not be interpreted as physical ball speed. The count of attackers ahead also exceeds 10 in one record; its counting convention needs verification.')
    st.write('The notebook trains on existing summary columns; it does not define the underlying spacing, wide-zone, or attacking-direction extraction. The app preserves those columns without inventing definitions or reconstructed positions.')
+
+
+elif page=='Paper':
+ info=json.loads((P/'paper_info.json').read_text())
+ st.caption('Author-provided manuscript · 19 pages')
+ st.header(info['title'])
+ st.write('**'+info['author']+'**')
+ st.caption('Soccer analytics · Supervised machine learning · Spatiotemporal tracking')
+ a,b=st.columns(2)
+ a.link_button('Read the original PDF','https://github.com/Doggo3/soccer-tactics-research/blob/main/paper.pdf',width='stretch')
+ b.download_button('Download PDF',(P/'paper.pdf').read_bytes(),file_name='Chiang_Soccer_Attacking_Phase_Classification.pdf',mime='application/pdf',width='stretch')
+ st.caption('The original supplied PDF includes assignment-template guidance alongside the research. This is an author-provided manuscript hosted with the project. No arXiv or journal publication is claimed here.')
+ st.subheader('Abstract')
+ st.write(info['abstract'])
+ st.caption('Abstract reproduced from the supplied paper; typography normalized. Figures and references are in the original PDF.')
+ st.divider()
+ st.subheader('Explore the evidence alongside the paper')
+ a,b=st.columns(2)
+ a.button('Classify a recorded phase',on_click=goto,args=('Classify a phase',),width='stretch')
+ b.button('Explore the reported results',on_click=goto,args=('Results & method',),width='stretch')
+ st.subheader('Cite this manuscript')
+ citation=info['author']+'. '+info['title']+'. Unpublished manuscript. '
+ st.write(citation)
+ bibtex='@unpublished{chiang_soccer_attacking_phases,\n  author = {Chiang, Jack},\n  title = {'+info['title']+'},\n  note = {Author-provided manuscript},\n  url = {https://machine-learning-soccer-attacking-phase-classification.streamlit.app/?section=paper}\n}'
+ with st.expander('BibTeX citation'):
+  st.code(bibtex,language='bibtex')
+  st.download_button('Download citation',bibtex,file_name='chiang_soccer_attacking_phases.bib',mime='text/plain')
+ st.caption('No publication year, journal, DOI, or arXiv identifier is assigned here because those details are not established in the supplied manuscript.')
 
 else:
  st.header('What the research found')
