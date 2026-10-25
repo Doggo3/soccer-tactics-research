@@ -147,11 +147,11 @@ elif page.startswith('2'):
    st.rerun()
   idx=st.selectbox('2. Choose a phase',options,key=selection_key,format_func=lambda i:phase_description(data.loc[i]),disabled=guide!='Browse freely')
   row=data.loc[idx];prob=all_probs[idx];winner=row.prediction
-  a,b=st.columns(2);a.metric('Supplied label',NAMES[label]);b.metric('App prediction',NAMES[winner])
+  a,b=st.columns(2);a.metric('Supplied label',NAMES[label]);b.metric('Original app prediction',NAMES[winner])
   rank=np.argsort(prob)[::-1]
   st.info(f"The model gives {NAMES[classes[rank[0]]]} {prob[rank[0]]:.1%} probability and {NAMES[classes[rank[1]]]} {prob[rank[1]]:.1%}. "+('The top choice matches the supplied label.' if row.correct else 'The top choice differs from the supplied label.'))
   activity=st.radio('What would you like to investigate?',['Read this phase','Change an input'],horizontal=True)
-  st.subheader('Measurements behind this example')
+  st.subheader('Original recorded measurements')
   a,b,c=st.columns(3);a.metric('Duration',f'{row.duration:.1f} s');b.metric('Signed x progress',f'{row.ball_progress_m:+.1f} m');c.metric('Attacking width',f'{row.attack_width_mean:.1f} m')
   st.caption('Progress is displacement along the stored x-axis. Width is the team’s average side-to-side spread. These summaries do not show the order of movement.')
   choices=['duration','ball_x_start','ball_progress_m','attack_width_mean','attackers_ahead_of_ball_mean']
@@ -163,6 +163,10 @@ elif page.startswith('2'):
    st.subheader('How does this phase compare with other phases?')
    f=st.selectbox('Compare one measurement',choices,format_func=lambda x:FIELDS[x][0])
    title,unit,meaning=FIELDS[f];st.write(meaning)
+   same_label=data.loc[data.tactic_label==label,f]
+   middle=float(same_label.median())
+   below=int((same_label<float(row[f])).sum())
+   st.write(f'**Your phase: {row[f]:.1f} {unit}.** The median for {NAMES[label].lower()} is {middle:.1f} {unit}; {below} of {len(same_label)} recorded {NAMES[label].lower()} phases have a lower value.')
    view=data.assign(Tactic=data.tactic_label.map(NAMES))
    fig=px.box(view,x=f,y='Tactic',orientation='h',category_orders={'Tactic':list(NAMES.values())},labels={f:f'{title} ({unit})'},title=f'{title} across all 567 test phases',color_discrete_sequence=['#819b8a'])
    fig.add_vline(x=float(row[f]),line_color='#a4471a',line_width=3,line_dash='dash',annotation_text=f'Selected phase: {row[f]:.1f} {unit}',annotation_position='top')
@@ -186,6 +190,10 @@ elif page.startswith('2'):
    altered=row[features].astype(float).copy();altered[field]=val
    new=m.predict_proba(pd.DataFrame([altered],columns=features))[0];newlabel=classes[int(new.argmax())]
    st.caption(f'Input change: {row[field]:.2f} → {val:.2f} {FIELDS[field][1]}')
+   before,after=st.columns(2)
+   before.metric('Prediction with original inputs',NAMES[winner])
+   after.metric('Prediction with your input',NAMES[newlabel])
+   st.caption(f'The changed model assigns {float(new.max()):.1%} to its top choice. The supplied reference label remains {NAMES[label]}; no ground-truth label exists for the hypothetical input.')
    if np.isclose(val,float(row[field])):
     st.info('Move the slider to test a different value. The current value is the original measurement.')
    elif newlabel==winner:
