@@ -8,6 +8,7 @@ import streamlit as st
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, f1_score
 from definitions import FIELDS
+from paper_web import render as render_paper
 
 P=Path(__file__).parent
 NAMES={'build_up':'Build-up','creation':'Creation','direct_attack':'Direct attack','fast_transition':'Fast transition','finishing':'Finishing'}
@@ -40,7 +41,7 @@ def scope_note():
  st.caption('Original study: supplied paper and saved notebook output. Live predictions: a rerun of the notebook’s Enhanced XGBoost configuration on the same CSV and match split.')
 
 st.title('Classifying soccer attacking phases')
-st.caption('Machine Learning-Based Classification of Soccer Attacking Phases Using Spatiotemporal Tracking Features')
+st.caption('A study of five attacking phases using player and ball tracking measurements')
 SECTIONS={'study':'The study','classify':'Classify a phase','data':'Explore the data','results':'Results & method','paper':'Paper'}
 if 'page' not in st.session_state:st.session_state.page=SECTIONS.get(st.query_params.get('section','study'),'The study')
 page=st.radio('Section',list(SECTIONS.values()),horizontal=True,key='page',label_visibility='collapsed')
@@ -50,7 +51,7 @@ st.divider()
 
 if page=='The study':
  st.header('Can measurements tell us what kind of attack is happening?')
- st.write('The paper tests whether a machine-learning model can assign one of five attacking-phase labels to a short section of soccer play. It uses numerical summaries of the ball and players—not video and not predictions of their next movements.')
+ st.write('One section of play, 18 measurements, five possible labels. This study tests whether a machine-learning model can identify an attacking phase from the positions and movement of the players and ball.')
  a,b,c=st.columns(3)
  a.markdown('<div class="step"><strong>1. Measure a phase</strong><p>Summarize one section of play using 18 inputs: position, team shape, pressure, and timing.</p></div>',unsafe_allow_html=True)
  b.markdown('<div class="step"><strong>2. Predict its label</strong><p>XGBoost scores the five possible categories and selects the highest-scoring one.</p></div>',unsafe_allow_html=True)
@@ -69,7 +70,7 @@ if page=='The study':
 
 elif page=='Classify a phase':
  st.header('Give the classifier a real recorded phase')
- st.write('Choose an example from the two held-out test matches, inspect its measurements, then run the classifier. All inputs come from your dataset; nothing is simulated or edited.')
+ st.write('Choose an example from the two held-out test matches, inspect its measurements, then run the classifier. Each example uses its complete set of 18 recorded inputs.')
  a,b=st.columns(2)
  label=a.selectbox('Reference label to explore',['All five labels']+classes,format_func=lambda c:NAMES.get(c,c))
  outcome=b.selectbox('Examples to show',['All examples','Model matches reference','Model differs from reference'])
@@ -82,6 +83,11 @@ elif page=='Classify a phase':
   typical=(pool[features].rank(pct=True)-.5).abs().mean(axis=1)
   if st.session_state.get(key) not in options:st.session_state[key]=int(typical.idxmin())
   idx=st.selectbox('Recorded test phase',options,format_func=lambda i:phase_name(test.loc[i]),key=key)
+  position=options.index(idx)
+  def next_record():
+   st.session_state[key]=options[position+1]
+   st.session_state.pop('classified_id',None)
+  st.button('Next recorded phase',disabled=position==len(options)-1,on_click=next_record)
   row=test.loc[idx];st.caption(f'{len(pool)} available examples. The clock is elapsed time within the half, restarting at zero in half 2.')
   st.subheader('What the model receives')
   a,b,c=st.columns(3);a.metric('Phase duration',f'{row.duration:.1f} s');b.metric('Average attacking width',f'{row.attack_width_mean:.1f} m');c.metric('Defenders within 5 m',f'{row.defenders_within_5m_mean:.2f} on average')
@@ -143,31 +149,7 @@ elif page=='Explore the data':
 
 
 elif page=='Paper':
- info=json.loads((P/'paper_info.json').read_text())
- st.caption('Author-provided manuscript · 19 pages')
- st.header(info['title'])
- st.write('**'+info['author']+'**')
- st.caption('Soccer analytics · Supervised machine learning · Spatiotemporal tracking')
- a,b=st.columns(2)
- a.link_button('Read the original PDF','https://github.com/Doggo3/soccer-tactics-research/blob/main/paper.pdf',width='stretch')
- b.download_button('Download PDF',(P/'paper.pdf').read_bytes(),file_name='Chiang_Soccer_Attacking_Phase_Classification.pdf',mime='application/pdf',width='stretch')
- st.caption('The original supplied PDF includes assignment-template guidance alongside the research. This is an author-provided manuscript hosted with the project. No arXiv or journal publication is claimed here.')
- st.subheader('Abstract')
- st.write(info['abstract'])
- st.caption('Abstract reproduced from the supplied paper; typography normalized. Figures and references are in the original PDF.')
- st.divider()
- st.subheader('Explore the evidence alongside the paper')
- a,b=st.columns(2)
- a.button('Classify a recorded phase',on_click=goto,args=('Classify a phase',),width='stretch')
- b.button('Explore the reported results',on_click=goto,args=('Results & method',),width='stretch')
- st.subheader('Cite this manuscript')
- citation=info['author']+'. '+info['title']+'. Unpublished manuscript. '
- st.write(citation)
- bibtex='@unpublished{chiang_soccer_attacking_phases,\n  author = {Chiang, Jack},\n  title = {'+info['title']+'},\n  note = {Author-provided manuscript},\n  url = {https://machine-learning-soccer-attacking-phase-classification.streamlit.app/?section=paper}\n}'
- with st.expander('BibTeX citation'):
-  st.code(bibtex,language='bibtex')
-  st.download_button('Download citation',bibtex,file_name='chiang_soccer_attacking_phases.bib',mime='text/plain')
- st.caption('No publication year, journal, DOI, or arXiv identifier is assigned here because those details are not established in the supplied manuscript.')
+ render_paper(paper,chart,goto)
 
 else:
  st.header('What the research found')
