@@ -3,6 +3,7 @@ import json
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 from xgboost import XGBClassifier
 from visuals import NAMES, COLORS, style
@@ -72,23 +73,33 @@ st.markdown('**Using Spatiotemporal Tracking Features**')
 page=st.radio('Explore the research',['1 · Understand the study','2 · Inspect real phases','3 · Compare the results'],horizontal=True,label_visibility='collapsed')
 st.markdown('<div class="hero"><h2>'+({'1':'Read the game through data','2':'Inside one attacking phase','3':'Compare the evidence'}[page[0]])+'</h2><p>'+({'1':'Discover the five labels, then investigate the real examples behind them.','2':'Choose a case. Inspect the evidence. Explore how the model responds.','3':'Compare performance and see where classification becomes difficult.'}[page[0]])+'</p></div>',unsafe_allow_html=True)
 if page.startswith('1'):
- st.header('Can tracking measurements identify an attacking phase?')
- st.write('Coaches and analysts often identify tactics by watching matches. My paper tests whether measurements of the players and ball can help classify short sections of an attack into five categories.')
- a,b,c=st.columns(3);a.metric('Matches','10');b.metric('Attacking phases','2,955');c.metric('Measurements per phase','18')
- st.caption('Source: paper, Dataset section. SkillCorner open data from the Australian A-League.')
- st.subheader('What the model receives—and what it returns')
- st.markdown('**Tracking observations → 18 phase measurements → classifier → one of five labels**')
- st.write('Each row summarizes one attacking phase: ball movement, team shape, player spacing, nearby defenders, and timing. The classifier learns to reproduce the phase labels supplied by SkillCorner’s AI-based system.')
- st.info('This app works with phase summaries. It does not contain match video or frame-by-frame player positions. Use “Inspect real phases” to examine the measurements and the model’s prediction together.')
- st.subheader('The five labels')
+ st.header('What is an attacking phase?')
+ st.write('An attack can change character: a team may build from the back, work for an opening, or rush forward after winning the ball. A phase is a short section of play given one of these labels. The five labels are categories, not five steps every attack must follow.')
+ st.subheader('Start with a soccer example')
  tactic=st.selectbox('Choose a label to learn about',classes,format_func=lambda x:NAMES[x])
- st.markdown('### '+NAMES[tactic]);st.write(DEFS[tactic])
- counts={'build_up':598,'creation':1226,'direct_attack':337,'fast_transition':132,'finishing':662}
- st.write(f"The full study contains **{counts[tactic]:,} {NAMES[tactic].lower()} phases** ({counts[tactic]/2955:.1%} of the dataset). These descriptions are the paper’s explanations, not fixed numerical rules for assigning labels.")
- frame=pd.DataFrame({'Tactic':[NAMES[x] for x in classes],'Phases':[counts[x] for x in classes]})
- fig=px.bar(frame,x='Phases',y='Tactic',orientation='h',text='Phases',title='How many examples of each tactic?',color_discrete_sequence=['#285943'])
- fig.update_layout(yaxis=dict(autorange='reversed'));chart(fig,'counts')
- st.caption('All 2,955 phases. Uneven class sizes matter: a model can score well overall while missing a large share of a rare tactic.')
+ stories={
+ 'build_up':('A team has possession deep in its own half and moves the ball out from the back.','Build-up describes establishing the attack.',[(12,24),(25,38),(38,29)]),
+ 'creation':('A team already has possession and moves the ball around to look for an opening.','Creation describes developing a chance.',[(55,20),(67,40),(77,28)]),
+ 'direct_attack':('A team sends the ball a long way forward quickly instead of using a patient series of passes.','Direct attack describes a quick route forward; it does not by itself tell you when possession was won.',[(25,25),(73,35),(88,28)]),
+ 'fast_transition':('A team wins possession and immediately attacks before the opponent can reorganize.','The key context is the change of possession. A fast forward attack is not automatically a fast transition.',[(40,37),(61,29),(82,38)]),
+ 'finishing':('An attack reaches its final action near the opponent’s goal, such as preparing a shot.','Finishing describes the end of an attacking move, not necessarily a goal.',[(77,42),(87,30),(98,30)])}
+ story,lesson,points=stories[tactic]
+ st.markdown('### '+NAMES[tactic]);st.write(story)
+ fig=go.Figure()
+ fig.add_shape(type='rect',x0=0,y0=0,x1=105,y1=68,line_color='white',fillcolor='#285943')
+ fig.add_shape(type='line',x0=52.5,y0=0,x1=52.5,y1=68,line_color='white')
+ fig.add_shape(type='circle',x0=43.35,y0=24.85,x1=61.65,y1=43.15,line_color='white')
+ for x0,x1 in [(0,16.5),(88.5,105)]: fig.add_shape(type='rect',x0=x0,y0=13.84,x1=x1,y1=54.16,line_color='white')
+ for (x,y),(nx,ny) in zip(points,points[1:]): fig.add_annotation(x=nx,y=ny,ax=x,ay=y,xref='x',yref='y',axref='x',ayref='y',showarrow=True,arrowhead=3,arrowwidth=4,arrowcolor='#f4cd63')
+ fig.add_trace(go.Scatter(x=[v[0] for v in points],y=[v[1] for v in points],mode='markers+text',marker=dict(size=24,color='#f4cd63'),text=['1','2','3'],textposition='middle center',textfont=dict(color='#173e32'),hoverinfo='skip'))
+ fig.update_layout(height=340,margin=dict(l=10,r=10,t=35,b=10),title='Illustration · attack moves left to right',showlegend=False,paper_bgcolor='white',plot_bgcolor='white',xaxis=dict(range=[-2,107],visible=False,fixedrange=True),yaxis=dict(range=[-2,70],visible=False,scaleanchor='x',scaleratio=1,fixedrange=True))
+ st.plotly_chart(fig,width='stretch',config={'displayModeBar':False},key='concept_pitch')
+ st.caption('Illustration only: the numbered points show an imagined ball route. This is not match footage, recorded tracking, or a model prediction.')
+ st.write('**What to notice:** '+lesson)
+ st.subheader('What does the paper ask?')
+ st.write('Can a computer identify these categories from measurements of the ball and players? Each example becomes a row of 18 numbers, including duration, team width, and ball position. The model chooses one label, which is compared with the label already supplied by SkillCorner.')
+ a,b,c=st.columns(3);a.metric('Matches studied','10');b.metric('Sections of play','2,955');c.metric('Inputs per example','18')
+ st.caption('Australian A-League · SkillCorner open data. The saved examples contain measurements, not videos or full player paths.')
  st.subheader('How the study was tested')
  a,b=st.columns(2)
  a.markdown('**Train: 8 matches · 2,388 phases**\n\nThe models learn relationships between measurements and labels.')
@@ -100,9 +111,9 @@ if page.startswith('1'):
 
 elif page.startswith('2'):
  st.header('Inspect a real attacking phase')
- st.write('Choose a supplied label, then examine an actual phase from the two test matches. Compare its measurements with the model’s prediction. Nothing here is a reconstructed match replay.')
+ st.write('Start with one example the model gets right. Then choose a close call or a mistake to see why identifying a phase can be difficult. “Browse freely” opens the full set of recorded examples.')
  st.caption('The explorer uses the retrained app model. Its results are separate from the original paper’s results.')
- guide=st.radio('Start with a case',['Browse freely','Correct classification','Close call','Fast-transition mistake'],horizontal=True)
+ guide=st.radio('Start with a case',['Correct classification','Close call','Fast-transition mistake','Browse freely'],horizontal=True)
  guided_index=None
  if guide!='Browse freely':
   margin=np.sort(all_probs,axis=1)[:,-1]-np.sort(all_probs,axis=1)[:,-2]
@@ -123,34 +134,45 @@ elif page.startswith('2'):
    st.session_state['outcome_filter']='All'
    st.session_state[f"phase_choice_{data.loc[guided_index,'tactic_label']}_All"]=guided_index
 
- a,b=st.columns(2)
- label=a.selectbox('1. Supplied tactic label',classes,format_func=lambda x:NAMES[x],key='label_filter',disabled=guide!='Browse freely')
- mode=b.radio('Show examples',['All','Model matches label','Model differs from label'],key='outcome_filter',disabled=guide!='Browse freely')
- pool=data[data.tactic_label==label]
- if mode!='All': pool=pool[pool.correct==(mode=='Model matches label')]
- st.write('**'+NAMES[label]+':** '+DEFS[label])
- st.caption(f'{len(pool)} test phases in this selection. A “supplied label” is SkillCorner’s reference classification, not an independent coach assessment.')
- if pool.empty:
-  st.info('No phases match this filter. Select “All” to inspect this tactic.')
+ if guide!='Browse freely':
+  idx=guided_index
+  label=data.loc[idx,'tactic_label']
+  pool=data.loc[[idx]]
  else:
-  options=pool.index.tolist()
-  selection_key=f'phase_choice_{label}_{mode}'
-  if st.session_state.get(selection_key) not in options: st.session_state[selection_key]=options[0]
-  position=options.index(st.session_state[selection_key])
-  nav1,nav2,nav3=st.columns([1,2,1])
-  if nav1.button('← Previous',disabled=position==0 or guide!='Browse freely'):
-   st.session_state[selection_key]=options[position-1]
-   st.rerun()
-  nav2.caption(f'Phase {position+1} of {len(options)} in this selection' if guide=='Browse freely' else 'Guided case · choose Browse freely to change phases')
-  if nav3.button('Next →',disabled=position==len(options)-1 or guide!='Browse freely'):
-   st.session_state[selection_key]=options[position+1]
-   st.rerun()
-  idx=st.selectbox('2. Choose a phase',options,key=selection_key,format_func=lambda i:phase_description(data.loc[i]),disabled=guide!='Browse freely')
+  a,b=st.columns(2)
+  label=a.selectbox('1. Supplied tactic label',classes,format_func=lambda x:NAMES[x],key='label_filter',disabled=guide!='Browse freely')
+  mode=b.radio('Show examples',['All','Model matches label','Model differs from label'],key='outcome_filter',disabled=guide!='Browse freely')
+  pool=data[data.tactic_label==label]
+  if mode!='All': pool=pool[pool.correct==(mode=='Model matches label')]
+  st.write('**'+NAMES[label]+':** '+DEFS[label])
+  st.caption(f'{len(pool)} test phases in this selection. A “supplied label” is SkillCorner’s reference classification, not an independent coach assessment.')
+  if pool.empty:
+   st.info('No phases match this filter. Select “All” to inspect this tactic.')
+  else:
+   options=pool.index.tolist()
+   selection_key=f'phase_choice_{label}_{mode}'
+   if st.session_state.get(selection_key) not in options: st.session_state[selection_key]=options[0]
+   position=options.index(st.session_state[selection_key])
+   nav1,nav2,nav3=st.columns([1,2,1])
+   if nav1.button('← Previous',disabled=position==0 or guide!='Browse freely'):
+    st.session_state[selection_key]=options[position-1]
+    st.rerun()
+   nav2.caption(f'Phase {position+1} of {len(options)} in this selection' if guide=='Browse freely' else 'Guided case · choose Browse freely to change phases')
+   if nav3.button('Next →',disabled=position==len(options)-1 or guide!='Browse freely'):
+    st.session_state[selection_key]=options[position+1]
+    st.rerun()
+   idx=st.selectbox('2. Choose a phase',options,key=selection_key,format_func=lambda i:phase_description(data.loc[i]),disabled=guide!='Browse freely')
+ if not pool.empty:
   row=data.loc[idx];prob=all_probs[idx];winner=row.prediction
+  if guide!='Browse freely':
+   st.write('**'+NAMES[label]+':** '+DEFS[label])
+   st.caption(phase_description(row))
+  st.caption('The supplied label is SkillCorner’s classification of this recorded phase. The app model tries to reproduce it.')
   a,b=st.columns(2);a.metric('Supplied label',NAMES[label]);b.metric('Original app prediction',NAMES[winner])
   rank=np.argsort(prob)[::-1]
   st.info(f"The model gives {NAMES[classes[rank[0]]]} {prob[rank[0]]:.1%} probability and {NAMES[classes[rank[1]]]} {prob[rank[1]]:.1%}. "+('The top choice matches the supplied label.' if row.correct else 'The top choice differs from the supplied label.'))
   activity=st.radio('What would you like to investigate?',['Read this phase','Change an input'],horizontal=True)
+  st.write('**What was recorded?** This section of play lasted '+f'{row.duration:.1f} seconds'+'. The attacking team was spread '+f'{row.attack_width_mean:.1f} meters'+' across the pitch on average.')
   st.subheader('Original recorded measurements')
   a,b,c=st.columns(3);a.metric('Duration',f'{row.duration:.1f} s');b.metric('Signed x progress',f'{row.ball_progress_m:+.1f} m');c.metric('Attacking width',f'{row.attack_width_mean:.1f} m')
   st.caption('Progress is displacement along the stored x-axis. Width is the team’s average side-to-side spread. These summaries do not show the order of movement.')
