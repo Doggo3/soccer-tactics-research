@@ -8,7 +8,7 @@ from xgboost import XGBClassifier
 from visuals import NAMES, COLORS, style
 
 P=Path(__file__).parent
-st.set_page_config(page_title='Soccer Attacking Phases | Jack Chiang',page_icon='⚽',layout='wide')
+st.set_page_config(page_title='Soccer Attacking Phases | Jack Chiang',layout='wide')
 st.markdown('''<style>
 .block-container{max-width:1050px;padding-top:4rem;padding-bottom:4rem;}
 h1{font-size:2.25rem!important;line-height:1.2!important;}
@@ -63,7 +63,6 @@ def chart(fig,key):
 def values_table(row):
  return pd.DataFrame([{'Measurement':FIELDS[f][0],'Value':round(float(row[f]),3),'Unit':FIELDS[f][1],'Meaning':FIELDS[f][2]} for f in features])
 
-st.caption('Jack Chiang · Research companion')
 st.title('Machine Learning-Based Classification of Soccer Attacking Phases')
 st.markdown('**Using Spatiotemporal Tracking Features**')
 page=st.radio('Explore the research',['1 · Understand the study','2 · Inspect real phases','3 · Compare the results'],horizontal=True,label_visibility='collapsed')
