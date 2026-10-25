@@ -1,0 +1,73 @@
+{
+  "confusion": [
+    [
+      117,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      4,
+      210,
+      6,
+      3,
+      10
+    ],
+    [
+      0,
+      5,
+      72,
+      1,
+      1
+    ],
+    [
+      0,
+      5,
+      1,
+      13,
+      6
+    ],
+    [
+      0,
+      2,
+      0,
+      2,
+      109
+    ]
+  ],
+  "importance": {
+    "ball_x_start": 0.1961,
+    "frames_sampled": 0.1187,
+    "ball_progress_m": 0.1124,
+    "attackers_ahead_of_ball_mean": 0.1018,
+    "attack_depth_mean": 0.0849,
+    "attack_width_mean": 0.0827,
+    "progress_speed_mps": 0.0518,
+    "defense_depth_mean": 0.0477,
+    "defense_width_mean": 0.0359,
+    "defense_spacing_mean": 0.0314,
+    "attack_spacing_mean": 0.0249,
+    "defenders_within_10m_mean": 0.0211,
+    "attackers_in_wide_zones_mean": 0.0195,
+    "defenders_within_5m_mean": 0.0193,
+    "ball_wide_share": 0.0182,
+    "duration": 0.013,
+    "match_minute": 0.0121,
+    "period": 0.0086
+  },
+  "fold_accuracy": [
+    0.899,
+    0.899,
+    0.932,
+    0.915,
+    0.878
+  ],
+  "fold_macro_f1": [
+    0.845,
+    0.852,
+    0.867,
+    0.828,
+    0.79
+  ]
+}
