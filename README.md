@@ -1,30 +1,49 @@
-# Classifying soccer attacking phases
+# Soccer tactics classification
 
-Streamlit research site based on Jack Chiang's supplied paper, 22-cell notebook, and 2,955-row SkillCorner phase-summary dataset.
+Can player and ball tracking measurements identify the type of attack? This project compares machine-learning models on 2,955 attacking phases from 10 Australian A-League matches, using SkillCorner data.
 
-## What the site does
-- Explains the five attacking-phase labels and the match-based evaluation.
-- Classifies actual held-out phases using all 18 recorded features.
-- Filters and visualizes the supplied records, with scoped CSV downloads.
-- Presents the paper/notebook's saved confusion matrix, model comparisons, importance scores, and grouped validation.
+The five labels are **build-up, creation, direct attack, fast transition, and finishing**.
 
-No player simulations, synthetic trajectories, editable formations, or movement predictions are included.
+[Explore the app](https://machine-learning-soccer-attacking-phase-classification.streamlit.app/) · [Read the paper](https://machine-learning-soccer-attacking-phase-classification.streamlit.app/?section=paper)
 
-## Run
+## Results
+
+The study reserves two entire matches for testing: 567 phases the models do not see during training.
+
+| Model | Accuracy | Macro F1 |
+| --- | ---: | ---: |
+| Enhanced XGBoost | 91.9% | 0.864 |
+| Enhanced Random Forest | 91.2% | 0.873 |
+
+XGBoost had the highest overall accuracy. Random Forest had the highest macro F1, which weights each category equally. Fast transitions were the hardest category: XGBoost identified 13 of 25 correctly.
+
+These are the paper’s reported results. The app uses a rerun of the notebook’s XGBoost configuration, with slightly different scores. See [reproduction notes](docs/reproduction.md).
+
+## Run locally
+
+Use Python 3.12 and a virtual environment:
 
 ```sh
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Evidence and reproduction
+On Windows, activate the environment with `.venv\Scripts\activate`.
 
-`data.csv` is the supplied `skillcorner_enhanced_dataset(1).csv`. Matches 2015213 and 1899585 form the 567-phase test split; the other 2,388 phases are training data. `train.py` fits the supplied notebook's Enhanced XGBoost configuration. The live fitted model is `model.ubj`, with metrics and input order in `metadata.json`.
+## Files
 
-The original notebook contains saved results but no historical fitted model or pinned dependencies. Rerunning its training cells in the site environment yields the exact predictions of `model.ubj`: accuracy 0.9206349, macro F1 0.8754636. The notebook's saved historical results are accuracy 0.919 and macro F1 0.864. The site distinguishes these two runs. It does not claim to reproduce the historical fitted model exactly.
+- `app.py` — classifier, dataset explorer, and results pages
+- `paper_web.py` — the paper’s web edition
+- `data.csv` — the 2,955 recorded phase summaries
+- `train.py` — fit XGBoost and save the model and evaluation metrics
+- `model.ubj`, `metadata.json` — fitted model, input order, and test results
+- `paper_info.json`, `paper_results.json` — manuscript text and reported results
+- `definitions.py` — measurement names, units, and explanations
 
-`paper_results.json` transcribes the saved notebook's confusion matrix (cell 6), feature importance (cell 8), and fold scores (cell 16). The confusion matrix has 567 entries and 521 correct labels. The grouped validation used a 300-tree Random Forest. The tuning settings summarized in cell 18 are distinct from the XGBoost fitted in cell 4.
+## About the data
 
-## Limits
+The target labels come from SkillCorner’s system. The models learn to reproduce those labels; they do not predict future player movement. Ten matches from one league also limit how far the results can be generalized.
 
-The CSV contains phase summaries, not full trajectories or video. The original extraction pipeline is not included. Reference labels come from SkillCorner's system. Ten matches from one league do not establish cross-league or coach-label performance. Some stored progress-speed values require extraction review before physical interpretation.
+Research by Jack Chiang, with guidance from Omar Ramos Escoto and support from Inspirit AI. Tracking data provided by [SkillCorner Open Data](https://github.com/SkillCorner/opendata).
