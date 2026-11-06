@@ -13,7 +13,7 @@ def render(paper, chart, goto):
     info = json.loads((P / "paper_info.json").read_text())
     st.header(info["title"])
     st.write("**Jack Chiang**")
-    st.caption("Web edition · Condensed from the supplied manuscript")
+    st.caption("November 5, 2026 · Web summary")
     part = st.radio(
         "Read a section",
         [
@@ -45,14 +45,14 @@ def render(paper, chart, goto):
             "This study asks whether player spacing, team shape, ball position, and movement during a phase can identify the type of attack. The task is supervised multiclass classification: each recorded phase becomes a vector of numerical inputs, and the model chooses one of five labels."
         )
         st.markdown(
-            "**Build-up** — a controlled attack, normally beginning farther from the opponent’s goal.\n\n**Creation** — developing an attacking opportunity.\n\n**Direct attack** — moving the ball forward quickly.\n\n**Fast transition** — attacking soon after gaining possession.\n\n**Finishing** — the final part of an attack near the opponent’s goal."
+            "**Build-up**: a controlled attack, normally beginning farther from the opponent’s goal.\n\n**Creation**: developing an attacking opportunity.\n\n**Direct attack**: moving the ball forward quickly.\n\n**Fast transition**: attacking soon after gaining possession.\n\n**Finishing**: the final part of an attack near the opponent’s goal."
         )
         st.write(
             "The reference labels were supplied by SkillCorner’s Phases of Play system. The model therefore learns to reproduce that system’s labels from a smaller set of tracking features. This is different from independently validating the labels with coaches."
         )
         st.subheader("Why summarize a phase?")
         st.write(
-            "Tracking data describes player and ball locations, providing information about team shape beyond individual events such as passes and shots. Summarizing those observations makes feature-based models easier to train and inspect. The trade-off is that averages discard the order of events—a potentially important distinction between a transition and an established attack."
+            "Tracking data describes player and ball locations, providing information about team shape beyond individual events such as passes and shots. Summarizing those observations makes feature-based models easier to train and inspect. The trade-off is that averages discard the order of events, a potentially important distinction between a transition and an established attack."
         )
     elif part == "Data & methods":
         st.subheader("Dataset and evaluation")
@@ -83,11 +83,6 @@ def render(paper, chart, goto):
         )
         st.write(
             "Accuracy measures the fraction of all test labels predicted correctly. Macro F1 averages each category’s F1 score equally, combining precision and recall without letting the largest class dominate. Confusion matrices show the kinds of mistakes, and feature-importance experiments examine which measurements the models use."
-        )
-        st.button(
-            "Explore the recorded measurements",
-            on_click=goto,
-            args=("Explore the data",),
         )
     elif part == "Findings":
         st.subheader("Strong overall accuracy, uneven performance by tactic")
@@ -125,7 +120,7 @@ def render(paper, chart, goto):
         fig.update_layout(yaxis=dict(autorange="reversed"))
         chart(fig, "web_paper_recall", 330)
         st.caption(
-            "Figure 1. Recall by category, calculated from the saved notebook confusion matrix. Each denominator is the number of test phases with that reference label. This is recall, not F1."
+            "Figure 1. Recall by category, calculated from the saved research confusion matrix. Each denominator is the number of test phases with that reference label. This is recall, not F1."
         )
         st.write(
             "Fast transition was the hardest category: 13 of its 25 test examples were correctly identified. Most mistakes assigned creation or finishing. Transitions can share spatial characteristics with those phases, while averages lose the sequence of actions following a change of possession. The paper proposes this lost context and the small class size as possible explanations."
@@ -137,7 +132,6 @@ def render(paper, chart, goto):
         st.write(
             "Removing groups of weaker features produced small changes in performance, without establishing that a smaller feature set was reliably better. Match-based validation also showed variation across held-out groups, reinforcing the need to evaluate on more than one split."
         )
-        st.button("Inspect the full results", on_click=goto, args=("Results & method",))
     elif part == "Conclusion":
         st.subheader("What the study supports")
         st.write(
@@ -173,6 +167,6 @@ def render(paper, chart, goto):
         st.code(
             "@unpublished{chiang_soccer_attacking_phases,\n  author = {Chiang, Jack},\n  title = {"
             + info["title"]
-            + "},\n  note = {Author-provided manuscript},\n  url = {https://machine-learning-soccer-attacking-phase-classification.streamlit.app/?section=paper}\n}",
+            + "},\n  year = {2026},\n  note = {Research manuscript},\n  url = {https://machine-learning-soccer-attacking-phase-classification.streamlit.app/?section=paper}\n}",
             language="bibtex",
         )

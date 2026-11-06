@@ -29,7 +29,7 @@ DEFS = {
 st.set_page_config(page_title="Classifying Soccer Attacking Phases", layout="wide")
 st.markdown(
     """<style>
-.block-container{max-width:1160px;padding-top:3rem;padding-bottom:4rem}h1{font-size:2.2rem!important;line-height:1.15!important;letter-spacing:-.045em}h2{font-size:1.6rem!important;letter-spacing:-.025em}h3{font-size:1.15rem!important}p,li{line-height:1.6} [data-testid="stMetric"]{background:#edf3ef;border:1px solid #d9e4dc;border-radius:10px;padding:14px} [data-testid="stMetricValue"]{font-size:1.65rem} [data-testid="stCaptionContainer"] p{color:#4f6057}button{min-height:44px} .step{border-top:3px solid #397563;padding:15px 0 8px}.step strong{font-size:18px}.step p{color:#4f6057}div[data-testid="stRadio"]>div{gap:.5rem 1.1rem}hr{margin:1.4rem 0}
+.block-container{max-width:1160px;padding-top:2rem;padding-bottom:4rem}h1{font-size:2.2rem!important;line-height:1.15!important;letter-spacing:-.045em}h2{font-size:1.6rem!important;letter-spacing:-.025em}h3{font-size:1.15rem!important}p,li{line-height:1.6} [data-testid="stMetric"]{background:#edf3ef;border:1px solid #d9e4dc;border-radius:12px;padding:14px} [data-testid="stMetricValue"]{font-size:1.65rem} [data-testid="stCaptionContainer"] p{color:#4f6057}button{min-height:44px} .step{border-top:3px solid #397563;padding:15px 0 8px}.step strong{font-size:18px}.step p{color:#4f6057}div[data-testid="stRadio"]>div{gap:.5rem 1.1rem}hr{margin:1rem 0} [data-testid="stImage"] img{border-radius:0;border:0;padding:0} [data-testid="stSegmentedControl"]{margin-bottom:8px} @media(max-width:600px){h1{font-size:1.8rem!important}.block-container{padding-top:2rem}}
 </style>""",
     unsafe_allow_html=True,
 )
@@ -128,10 +128,12 @@ if "page" not in st.session_state:
     st.session_state.page = SECTIONS.get(
         st.query_params.get("section", "study"), "The study"
     )
-page = st.radio(
+page = st.segmented_control(
     "Section",
     list(SECTIONS.values()),
-    horizontal=True,
+    required=True,
+    width="stretch",
+    wrap=True,
     key="page",
     label_visibility="collapsed",
 )
@@ -141,10 +143,15 @@ if st.query_params.get("section") != slug:
 st.divider()
 
 if page == "The study":
-    st.header("Can measurements tell us what kind of attack is happening?")
-    st.write(
-        "One section of play, 18 measurements, five possible labels. This study tests whether a machine-learning model can identify an attacking phase from the positions and movement of the players and ball."
-    )
+    intro, illustration = st.columns([1.2, 1], gap="large", vertical_alignment="center")
+    with intro:
+        st.header("Classifying an attack from tracking data")
+        st.write(
+            "We used player and ball tracking measurements to classify five types of attacking play. The study covers 2,955 phases from 10 Australian A-League matches."
+        )
+    with illustration:
+        st.image(str(P / "assets" / "soccer-header.png"), width="stretch")
+        st.caption("Illustration, not match tracking data.")
     a, b, c = st.columns(3)
     a.markdown(
         '<div class="step"><strong>1. Measure a phase</strong><p>Summarize one section of play using 18 inputs: position, team shape, pressure, and timing.</p></div>',
@@ -158,21 +165,13 @@ if page == "The study":
         '<div class="step"><strong>3. Check the answer</strong><p>Compare the prediction with SkillCorner’s existing label for that recorded phase.</p></div>',
         unsafe_allow_html=True,
     )
-    a, b = st.columns(2)
-    a.button(
-        "Try classifying a real phase",
-        type="primary",
-        on_click=goto,
-        args=("Classify a phase",),
-    )
-    b.button("Read the paper", on_click=goto, args=("Paper",))
-    st.subheader("Five labels, five different meanings")
+    st.subheader("The five attacking phases")
     for c in classes:
-        st.markdown("**" + NAMES[c] + "** — " + DEFS[c])
+        st.markdown("**" + NAMES[c] + "**: " + DEFS[c])
     st.write(
-        "**A key distinction:** direct attack describes quick forward movement; fast transition also needs the context of a recent change of possession. These labels are categories, not five steps every attack must follow."
+        "A direct attack moves the ball forward quickly. A fast transition starts soon after possession changes. An attack does not have to pass through all five categories."
     )
-    st.subheader("The evidence behind the study")
+    st.subheader("The dataset")
     a, b, c = st.columns(3)
     a.metric("Recorded phases", f"{len(full):,}")
     b.metric("A-League matches", str(full.match_id.nunique()))
@@ -184,13 +183,13 @@ if page == "The study":
         "The paper reports 91.9% accuracy for Enhanced XGBoost. But it correctly identified only 13 of 25 fast transitions. Strong overall accuracy can hide a weaker result for a less common category."
     )
     st.caption(
-        "Source: paper, Dataset, Methodology, and Results; notebook cells 3–7. The reference labels come from SkillCorner’s system, not a separate assessment by coaches in this study."
+        "Source: research paper and project codebase. Reference labels were provided by SkillCorner."
     )
 
 elif page == "Classify a phase":
-    st.header("Give the classifier a real recorded phase")
+    st.header("Classify a recorded phase")
     st.write(
-        "Choose an example from the two held-out test matches, inspect its measurements, then run the classifier. Each example uses its complete set of 18 recorded inputs."
+        "Choose a phase and click Classify. The model uses all 18 recorded measurements, then compares its prediction with the dataset label."
     )
     a, b = st.columns(2)
     label = a.selectbox(
@@ -227,16 +226,30 @@ elif page == "Classify a phase":
             st.session_state[key] = options[position + 1]
             st.session_state.pop("classified_id", None)
 
-        st.button(
+        def previous_record():
+            st.session_state[key] = options[position - 1]
+            st.session_state.pop("classified_id", None)
+
+        actions = st.columns([1, 1, 2])
+        actions[0].button(
+            "Previous phase",
+            disabled=position == 0,
+            on_click=previous_record,
+            width="stretch",
+        )
+        actions[1].button(
             "Next recorded phase",
             disabled=position == len(options) - 1,
             on_click=next_record,
+            width="stretch",
         )
+        if actions[2].button("Classify this phase", type="primary", width="stretch"):
+            st.session_state["classified_id"] = int(idx)
         row = test.loc[idx]
         st.caption(
             f"{len(pool)} available examples. The clock is elapsed time within the half, restarting at zero in half 2."
         )
-        st.subheader("What the model receives")
+        st.subheader("Recorded measurements")
         a, b, c = st.columns(3)
         a.metric("Phase duration", f"{row.duration:.1f} s")
         b.metric("Average attacking width", f"{row.attack_width_mean:.1f} m")
@@ -244,7 +257,7 @@ elif page == "Classify a phase":
             "Defenders within 5 m", f"{row.defenders_within_5m_mean:.2f} on average"
         )
         st.write(
-            "Width describes the team’s side-to-side spread. Nearby-defender counts describe pressure around the ball. These are averages over the phase, so a player count can be fractional."
+            "Width is the team’s average side-to-side spread. The defender count is also an average, so it can be fractional."
         )
         with st.expander("Inspect all 18 model inputs"):
             st.dataframe(
@@ -256,14 +269,12 @@ elif page == "Classify a phase":
             st.caption(
                 "Match ID, phase ID, and reference label are identifiers or evaluation data. They are not model inputs. Signed x movement is not automatically forward or backward relative to the attacking team."
             )
-        if st.button("Classify this phase", type="primary"):
-            st.session_state["classified_id"] = int(idx)
         if st.session_state.get("classified_id") == idx:
             current = m.predict_proba(
                 pd.DataFrame([row[features].astype(float)], columns=features)
             )[0]
             winner = classes[int(current.argmax())]
-            st.subheader("What the classifier returned")
+            st.subheader("Prediction")
             a, b = st.columns(2)
             a.metric("Predicted label", NAMES[winner])
             b.metric("Dataset reference label", NAMES[row.tactic_label])
@@ -294,10 +305,10 @@ elif page == "Classify a phase":
             fig.update_layout(showlegend=False)
             chart(fig, "phase_scores", 310)
             st.caption(
-                "The highest score determines the prediction. These probabilities are not guarantees, and the chart does not explain which input caused this particular decision."
+                "The largest probability determines the label. Probabilities are model estimates, not guarantees."
             )
             st.write(
-                "**What to try next:** select a different recorded phase, or choose “Model differs from reference” to inspect an error. The new record brings its own complete set of 18 inputs."
+                "To inspect mistakes, choose “Model differs from reference” above."
             )
             csv = measurements(row).to_csv(index=False).encode()
             st.download_button(
@@ -308,13 +319,13 @@ elif page == "Classify a phase":
             )
         st.divider()
         st.caption(
-            f'Live model: rerun of notebook cells 3–4 (400 trees, depth 5, learning rate 0.05). It scores {meta["accuracy"]:.1%} accuracy and {meta["macro_f1"]:.3f} macro F1 here. The notebook’s saved run reports 91.9% and 0.864; its original fitted model was not included, so this is not presented as that exact saved run.'
+            "This app reruns the research model. Results & method explains the small difference from the paper’s saved scores."
         )
 
 elif page == "Explore the data":
-    st.header("Look for patterns in the recorded measurements")
+    st.header("Explore the dataset")
     st.write(
-        "Every point is one actual phase. Compare categories and see where their measurements overlap. A pattern in this view does not establish a rule for assigning a tactic."
+        "Each point is a recorded phase. Choose two measurements to compare, or filter by label and data split."
     )
     a, b = st.columns([1, 2])
     split = a.selectbox(
@@ -375,7 +386,7 @@ elif page == "Explore the data":
         st.caption(
             "Hover to inspect a record. Click a legend label to hide that category in this chart; use the filters above to change the actual data selection."
         )
-        st.subheader("How much the categories overlap")
+        st.subheader("Compare distributions")
         f = st.selectbox(
             "Compare the distribution of",
             options,
@@ -398,7 +409,7 @@ elif page == "Explore the data":
             "The line inside a box is the median. The box holds the middle 50% of values; points beyond the whiskers are unusually far from the middle. Overlap means this measurement alone cannot cleanly separate those labels."
         )
         counts = view.tactic_label.value_counts().reindex(classes, fill_value=0)
-        st.subheader("How many examples are available?")
+        st.subheader("Phase counts")
         frame = pd.DataFrame(
             {
                 "Label": [NAMES[c] for c in classes if c in labels],
@@ -437,7 +448,7 @@ elif page == "Explore the data":
                 "Some stored progress-speed values are extreme (−252.5 to +190.0 m/s). Signed progress divided by duration reproduces them, but the original extraction code is not supplied, so they should not be interpreted as physical ball speed. The count of attackers ahead also exceeds 10 in one record; its counting convention needs verification."
             )
             st.write(
-                "The notebook trains on existing summary columns; it does not define the underlying spacing, wide-zone, or attacking-direction extraction. The app preserves those columns without inventing definitions or reconstructed positions."
+                "The training code uses the existing summary columns. It does not contain the original calculations for spacing, wide zones, or attacking direction."
             )
 
 
@@ -445,9 +456,9 @@ elif page == "Paper":
     render_paper(paper, chart, goto)
 
 else:
-    st.header("What the research found")
+    st.header("Results")
     st.write(
-        "These results come from the paper and the notebook’s saved output. They describe classification of existing SkillCorner labels, not predictions of player movement or whether an attack will succeed."
+        "Results from the paper and the saved research run. The task is to classify SkillCorner’s phase labels."
     )
     tab1, tab2, tab3 = st.tabs(
         ["Classification results", "Inputs & validation", "Method & sources"]
@@ -511,7 +522,7 @@ else:
                 450,
             )
             st.caption(
-                "Read by row: reference labels at left, predicted labels below. Diagonal cells are correct. Source: notebook cell 6 saved figure; counts sum to 567."
+                "Rows show dataset labels; columns show predictions. The diagonal contains correct predictions. Source: saved research run, 567 test phases."
             )
         st.subheader("How the models compare")
         metric = st.radio(
@@ -548,7 +559,7 @@ else:
             fig.update_xaxes(tickformat=".0%")
         chart(fig, "model_comparison", 370)
         st.caption(
-            "Original = 14 inputs; enhanced = 18. Enhanced XGBoost leads accuracy in this comparison; Enhanced Random Forest leads macro F1. Source: paper results table and notebook cell 21."
+            "Original models use 14 inputs; enhanced models use 18. XGBoost has the highest accuracy; Random Forest has the highest macro F1. Source: paper results table."
         )
     with tab2:
         st.subheader("Which inputs did XGBoost use most?")
@@ -580,7 +591,7 @@ else:
         fig.update_traces(texttemplate="%{x:.3f}")
         chart(fig, "importance", max(300, top * 27))
         st.caption(
-            "Saved notebook cell 8: XGBoost feature-importance scores. These summarize how the fitted model uses inputs across its trees; they do not explain an individual prediction or show cause and effect."
+            "Feature importance from the saved XGBoost research run. These scores describe the model overall, not the cause of an individual prediction."
         )
         st.subheader("Does performance vary between matches?")
         folds = pd.DataFrame(
@@ -604,10 +615,10 @@ else:
             300,
         )
         st.write(
-            "The saved notebook reports mean accuracy **0.905** and mean macro F1 **0.836** across five match-group folds. These folds use a **Random Forest with 300 trees**, not the Enhanced XGBoost model above. Every fold keeps matches together."
+            "The codebase records mean accuracy **0.905** and macro F1 **0.836** across five match-group folds. This experiment uses a **300-tree Random Forest** and keeps each match within one fold."
         )
         st.caption(
-            "Source: notebook cell 16. Fold-level values are shown to the three decimals saved in its output. Differences between folds show why one test split cannot establish performance in every match."
+            "Source: saved group-validation results, rounded to three decimals. Performance varies with the matches held out."
         )
         with st.expander("Feature removal and tuning"):
             st.dataframe(
@@ -625,33 +636,31 @@ else:
                 "The feature-removal experiment uses Random Forest and begins with the 14 original inputs. Changes are small; it does not establish that fewer features are reliably better."
             )
             st.write(
-                "The paper reports a tuning search with 25 configurations and five folds, with best validation macro F1 0.884. Notebook cell 18 records these settings as a summary; it does not contain the search execution. Best reported settings include 400 trees, depth 7, and learning rate 0.03. They are not the depth-5 configuration fitted in notebook cell 4."
+                "The paper reports 25 tuning configurations, five folds, and best validation macro F1 of 0.884. The codebase stores the search summary, but not the search itself. Its best reported settings include 400 trees, depth 7, and learning rate 0.03. The app uses the separate depth-5 configuration."
             )
     with tab3:
         st.subheader("What was trained and tested?")
         st.write(
-            "The notebook fits Enhanced XGBoost to 2,388 phases from eight matches using 18 inputs and balanced sample weights. It tests on 567 phases from matches 2015213 and 1899585. Labels and match/phase identifiers are excluded from the input features."
+            "The training code fits XGBoost to 2,388 phases from eight matches, using 18 inputs and balanced sample weights. Testing uses 567 phases from matches 2015213 and 1899585. Labels and match/phase IDs are excluded from the inputs."
         )
         st.write(
             "The four added inputs are minutes elapsed in the half, half number, duration, and signed progress speed. The original 14 describe ball location, team shape, nearby defenders, and sample counts."
         )
         st.subheader("Why the live prediction scores differ slightly")
         st.write(
-            f'The notebook includes code and saved outputs, but no fitted model file. The site reruns its cell-4 configuration on the supplied CSV: 400 trees, depth 5, learning rate 0.05, 0.8 row/column sampling, and seed 42. This fitted model reaches {meta["accuracy"]:.1%} accuracy and {meta["macro_f1"]:.3f} macro F1. The saved historical run reaches 91.9% and 0.864. The supplied notebook does not pin package versions, so the exact cause of this small difference has not been established.'
+            f'The project codebase includes the training steps and saved results. The original fitted model was not included, so the site runs the same configuration again: 400 trees, depth 5, learning rate 0.05, 0.8 row/column sampling, and seed 42. This fitted model reaches {meta["accuracy"]:.1%} accuracy and {meta["macro_f1"]:.3f} macro F1. The saved historical run reaches 91.9% and 0.864. The original environment did not pin package versions. The cause of the small difference has not been established.'
         )
         st.subheader("What the study cannot establish")
         st.write(
             "The dataset contains only 10 matches from one league. Its labels were generated by SkillCorner’s system. High agreement with those labels does not establish agreement with independent coaches, performance in other leagues, or the ability to predict future movement. Phase averages also discard the order of events."
         )
-        st.subheader("Sources used on this site")
+        st.subheader("Paper, code, and data")
         st.markdown(
-            "- **Paper:** TS8_ Final Research Paper Task Sheet-4.pdf — definitions, methods, reported results, and limitations.\n- **Notebook:** Classifying Soccer Tactics — 22 code cells and saved outputs; model setup, confusion matrix, feature importance, and grouped validation.\n- **Dataset:** skillcorner_enhanced_dataset(1).csv — 2,955 recorded phases and 21 columns, of which 18 are model inputs."
+            "- **Paper:** Machine Learning-Based Classification of Soccer Attacking Phases Using Spatiotemporal Tracking Features, November 5, 2026.\n- **Codebase:** Python code for preparing the train/test split, training the models, and evaluating predictions. It was developed in a Jupyter notebook, a document that keeps code, written notes, and saved outputs together.\n- **Dataset:** 2,955 recorded phases, with 18 model inputs and three label/identifier columns."
         )
         st.caption(
             "The original feature-extraction code, match videos, full tracking sequences, and historical fitted model were not included. No invented trajectories or formations are used in this site."
         )
 
 st.divider()
-st.caption(
-    "Research scope: classify recorded attacking phases into five categories. Data and reference labels: SkillCorner. Paper acknowledgements: Omar Ramos Escoto and Inspirit AI."
-)
+st.caption("Jack Chiang · Soccer attacking-phase classification · Data: SkillCorner")

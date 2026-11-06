@@ -17,7 +17,7 @@ The study reserves two entire matches for testing: 567 phases the models do not 
 
 XGBoost had the highest overall accuracy. Random Forest had the highest macro F1, which weights each category equally. Fast transitions were the hardest category: XGBoost identified 13 of 25 correctly.
 
-These are the paper’s reported results. The app uses a rerun of the notebook’s XGBoost configuration, with slightly different scores. See [reproduction notes](docs/reproduction.md).
+These are the paper’s reported results. The app uses a rerun of the codebase’s XGBoost configuration, with slightly different scores. See [reproduction notes](docs/reproduction.md).
 
 ## Run locally
 
@@ -34,13 +34,13 @@ On Windows, activate the environment with `.venv\Scripts\activate`.
 
 ## Files
 
-- `app.py` — classifier, dataset explorer, and results pages
-- `paper_web.py` — the paper’s web edition
-- `data.csv` — the 2,955 recorded phase summaries
-- `train.py` — fit XGBoost and save the model and evaluation metrics
-- `model.ubj`, `metadata.json` — fitted model, input order, and test results
-- `paper_info.json`, `paper_results.json` — manuscript text and reported results
-- `definitions.py` — measurement names, units, and explanations
+- `app.py`: classifier, dataset explorer, and results pages
+- `paper_web.py`: the paper’s web edition
+- `data.csv`: the 2,955 recorded phase summaries
+- `train.py`: fit XGBoost and save the model and evaluation metrics
+- `model.ubj`, `metadata.json`: fitted model, input order, and test results
+- `paper_info.json`, `paper_results.json`: manuscript text and reported results
+- `definitions.py`: measurement names, units, and explanations
 
 ## About the data
 
