@@ -31,6 +31,11 @@ st.set_page_config(page_title=PAPER_TITLE, layout="wide")
 st.markdown(
     """<style>
 .block-container{max-width:1160px;padding-top:2rem;padding-bottom:4rem}h1{font-size:2.2rem!important;line-height:1.15!important;letter-spacing:-.045em}h2{font-size:1.6rem!important;letter-spacing:-.025em}h3{font-size:1.15rem!important}p,li{line-height:1.6} [data-testid="stMetric"]{background:#edf3ef;border:1px solid #d9e4dc;border-radius:12px;padding:14px} [data-testid="stMetricValue"]{font-size:1.65rem} [data-testid="stCaptionContainer"] p{color:#4f6057}button{min-height:44px} .step{border-top:3px solid #397563;padding:15px 0 8px}.step strong{font-size:18px}.step p{color:#4f6057}div[data-testid="stRadio"]>div{gap:.5rem 1.1rem}hr{margin:1rem 0} [data-testid="stImage"] img{border-radius:0;border:0;padding:0} [data-testid="stSegmentedControl"]{margin-bottom:8px} @media(max-width:600px){h1{font-size:1.8rem!important}.block-container{padding-top:2rem}}
+h1{color:#205b3c!important;border-top:4px solid #39835b;padding-top:18px!important}h2,h3{color:#285943!important}
+[data-testid="stSegmentedControl"]{background:#edf5ee;border-radius:9px;padding:4px}
+[data-testid="stMetric"]{background:#eaf4ec;border-color:#cbded0}
+[data-testid="stBaseButton-primary"]{background:#286544;border-color:#286544;color:#fff}
+[data-testid="stBaseButton-primary"]:hover{background:#1d5034;border-color:#1d5034}
 </style>""",
     unsafe_allow_html=True,
 )
