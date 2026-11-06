@@ -41,6 +41,8 @@ h1{color:#205b3c!important;border-top:4px solid #39835b;padding-top:18px!importa
 .step strong{color:#205b3c}.step p{color:#344f3e}
 [data-testid="stMetric"]{background:#f7f8f7;border:1px solid #e2e6e3}
 hr{border-color:#e2e6e3!important}
+[data-testid="stDecoration"]{display:none!important}
+[data-testid="stHeader"],[data-testid="stHeader"]::before,[data-testid="stHeader"]::after{background:#fff!important;background-image:none!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;mask-image:none!important}
 </style>""",
     unsafe_allow_html=True,
 )
