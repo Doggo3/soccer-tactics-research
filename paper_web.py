@@ -157,11 +157,15 @@ def render(paper, chart, goto):
         st.subheader("References in the manuscript")
         st.markdown(
             """1. SkillCorner. [SkillCorner Open Data](https://github.com/SkillCorner/opendata).
-2. SkillCorner. Phases of Play CSV Specifications.
+2. SkillCorner. [Phases of Play CSV Specifications](https://26560301.fs1.hubspotusercontent-eu1.net/hubfs/26560301/Guides/Phases%20of%20Play/20250216%20-%20Phases%20of%20Play%20CSV%20Specifications.pdf).
 3. Y. Li and D. Link. [Intention Driven Identification of In-Possession Match Phases in Association Football Through Temporal Graph Learning](https://arxiv.org/abs/2606.09289).
 4. [An AI Framework for Counterattack Detection and Decision-Making Evaluation in Football](https://link.springer.com/article/10.1186/s40537-025-01128-3).
 5. [Estimation of Overlapped Tactical Actions from Soccer Tracking Data](https://www.scitepress.org/Papers/2024/130663/130663.pdf).
-6. [Mapping Football Tactical Behavior and Collective Dynamics with Artificial Intelligence: A Systematic Review](https://pmc.ncbi.nlm.nih.gov/articles/PMC12163489/)."""
+6. [Mapping Football Tactical Behavior and Collective Dynamics with Artificial Intelligence: A Systematic Review](https://pmc.ncbi.nlm.nih.gov/articles/PMC12163489/).
+7. R. Rein and D. Memmert. [Big Data and Tactical Analysis in Elite Soccer: Future Challenges and Opportunities for Sports Science](https://doi.org/10.1186/s40064-016-3108-2).
+8. S. Lang, R. Wild, A. Isenko, and D. Link. [Predicting the In-Game Status in Soccer with Machine Learning Using Spatiotemporal Player Tracking Data](https://doi.org/10.1038/s41598-022-19948-1).
+9. F. Vidal-Codina, N. Evans, B. El Fakir, and J. Billingham. [Automatic Event Detection in Football Using Tracking Data](https://doi.org/10.1007/s12283-022-00381-6).
+10. L. Forcher and colleagues. [Prediction of Defensive Success in Elite Soccer Using Machine Learning](https://doi.org/10.1080/24733938.2023.2239766)."""
         )
         st.caption("References transcribed from the supplied manuscript.")
     with st.expander("Citation"):

@@ -524,6 +524,34 @@ else:
             st.caption(
                 "Rows show dataset labels; columns show predictions. The diagonal contains correct predictions. Source: saved research run, 567 test phases."
             )
+        with st.expander("Precision, recall, and F1 for every phase"):
+            true_counts = cm.sum(axis=1)
+            predicted_counts = cm.sum(axis=0)
+            precision = np.diag(cm) / predicted_counts
+            recall = np.diag(cm) / true_counts
+            f1 = 2 * precision * recall / (precision + recall)
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Phase": list(NAMES.values()),
+                        "Precision": precision,
+                        "Recall": recall,
+                        "F1": f1,
+                        "Test phases": true_counts,
+                    }
+                ).round(3),
+                hide_index=True,
+                width="stretch",
+            )
+            st.caption(
+                "Calculated from the saved research confusion matrix above, not the live model rerun."
+            )
+        st.write(
+            "The paper also reports a **macro AUC of 0.990**. AUC measures how well prediction scores rank each class against the others across thresholds; it is not the percentage of correctly classified phases."
+        )
+        st.caption(
+            "The original ROC curves are in Figure 4 of the full paper, linked from the Paper section."
+        )
         st.subheader("How the models compare")
         metric = st.radio(
             "Comparison metric", ["Accuracy", "Macro F1"], horizontal=True
@@ -593,6 +621,9 @@ else:
         st.caption(
             "Feature importance from the saved XGBoost research run. These scores describe the model overall, not the cause of an individual prediction."
         )
+        st.write(
+            "The paper also reports permutation importance: shuffling ball starting position and forward progress had the largest effects on model performance (Figure 5). This is a separate analysis from the XGBoost importance scores above."
+        )
         st.subheader("Does performance vary between matches?")
         folds = pd.DataFrame(
             {
@@ -657,6 +688,11 @@ else:
         st.subheader("Paper, code, and data")
         st.markdown(
             "- **Paper:** Machine Learning-Based Classification of Soccer Attacking Phases Using Spatiotemporal Tracking Features, November 5, 2026.\n- **Codebase:** Python code for preparing the train/test split, training the models, and evaluating predictions. It was developed in a Jupyter notebook, a document that keeps code, written notes, and saved outputs together.\n- **Dataset:** 2,955 recorded phases, with 18 model inputs and three label/identifier columns."
+        )
+        st.markdown(
+            "[Training code](https://github.com/Doggo3/soccer-tactics-research/blob/main/train.py) · "
+            "[Processed dataset](https://github.com/Doggo3/soccer-tactics-research/blob/main/data.csv) · "
+            "[Reproduction notes](https://github.com/Doggo3/soccer-tactics-research/blob/main/docs/reproduction.md)"
         )
         st.caption(
             "The original feature-extraction code, match videos, full tracking sequences, and historical fitted model were not included. No invented trajectories or formations are used in this site."
