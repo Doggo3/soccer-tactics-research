@@ -36,7 +36,7 @@ h1{color:#205b3c!important;border-top:4px solid #39835b;padding-top:18px!importa
 [data-testid="stMetric"]{background:#eaf4ec;border-color:#cbded0}
 [data-testid="stBaseButton-primary"]{background:#286544;border-color:#286544;color:#fff}
 [data-testid="stBaseButton-primary"]:hover{background:#1d5034;border-color:#1d5034}
-[data-testid="stAppViewContainer"]{background:#f5faf6}
+[data-testid="stApp"],[data-testid="stAppViewContainer"],[data-testid="stHeader"]{background-color:#ffffff!important;background-image:none!important}
 .step{background:#e5f1e8;border-top:4px solid #39835b;border-radius:0 0 10px 10px;padding:16px 18px;min-height:165px}
 .step strong{color:#205b3c}.step p{color:#344f3e}
 [data-testid="stMetric"]{background:#dfeee3;border:1px solid #b7d2bf}
@@ -522,7 +522,18 @@ else:
                     x=list(NAMES.values()),
                     y=list(NAMES.values()),
                     text_auto=True,
-                    color_continuous_scale="Greens",
+                    color_continuous_scale=[
+                        [0.0, "#edf4ef"],
+                        [0.2, "#edf4ef"],
+                        [0.2, "#c6dfce"],
+                        [0.4, "#c6dfce"],
+                        [0.4, "#8fbd9c"],
+                        [0.6, "#8fbd9c"],
+                        [0.6, "#4f9062"],
+                        [0.8, "#4f9062"],
+                        [0.8, "#205b3c"],
+                        [1.0, "#205b3c"],
+                    ],
                     labels={
                         "x": "Predicted label",
                         "y": "Reference label",
