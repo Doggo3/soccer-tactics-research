@@ -19,6 +19,10 @@ XGBoost had the highest overall accuracy. Random Forest had the highest macro F1
 
 These are the paper’s reported results. The app uses a rerun of the codebase’s XGBoost configuration, with slightly different scores. See [reproduction notes](docs/reproduction.md).
 
+## Research codebase
+
+[Open the research notebook](notebooks/classifying_soccer_tactics.ipynb). It contains the Python code and saved outputs for model training, evaluation, and figures. To run it in Google Colab, upload `data.csv` when prompted.
+
 ## Run locally
 
 Use Python 3.12 and a virtual environment:
