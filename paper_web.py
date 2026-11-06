@@ -14,6 +14,10 @@ def render(paper, chart, goto):
     st.header(info["title"])
     st.write("**Jack Chiang**")
     st.caption("November 5, 2026 · Web summary")
+    st.link_button(
+        "Read the full paper (PDF)",
+        "https://github.com/Doggo3/soccer-tactics-research/raw/refs/heads/main/docs/paper.pdf",
+    )
     part = st.radio(
         "Read a section",
         [
