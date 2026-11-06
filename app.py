@@ -9,6 +9,7 @@ from definitions import FIELDS
 from paper_web import render as render_paper
 
 P = Path(__file__).parent
+PAPER_TITLE = json.loads((P / "paper_info.json").read_text())["title"]
 NAMES = {
     "build_up": "Build-up",
     "creation": "Creation",
@@ -26,7 +27,7 @@ DEFS = {
     "fast_transition": "Attacking soon after gaining possession.",
     "finishing": "The final part of an attack near the opponent’s goal.",
 }
-st.set_page_config(page_title="Classifying Soccer Attacking Phases", layout="wide")
+st.set_page_config(page_title=PAPER_TITLE, layout="wide")
 st.markdown(
     """<style>
 .block-container{max-width:1160px;padding-top:2rem;padding-bottom:4rem}h1{font-size:2.2rem!important;line-height:1.15!important;letter-spacing:-.045em}h2{font-size:1.6rem!important;letter-spacing:-.025em}h3{font-size:1.15rem!important}p,li{line-height:1.6} [data-testid="stMetric"]{background:#edf3ef;border:1px solid #d9e4dc;border-radius:12px;padding:14px} [data-testid="stMetricValue"]{font-size:1.65rem} [data-testid="stCaptionContainer"] p{color:#4f6057}button{min-height:44px} .step{border-top:3px solid #397563;padding:15px 0 8px}.step strong{font-size:18px}.step p{color:#4f6057}div[data-testid="stRadio"]>div{gap:.5rem 1.1rem}hr{margin:1rem 0} [data-testid="stImage"] img{border-radius:0;border:0;padding:0} [data-testid="stSegmentedControl"]{margin-bottom:8px} @media(max-width:600px){h1{font-size:1.8rem!important}.block-container{padding-top:2rem}}
@@ -113,7 +114,7 @@ def goto(page):
     st.session_state["page"] = page
 
 
-st.title("Classifying soccer attacking phases")
+st.title(PAPER_TITLE)
 st.caption(
     "A study of five attacking phases using player and ball tracking measurements"
 )
