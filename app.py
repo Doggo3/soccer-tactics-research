@@ -36,6 +36,11 @@ h1{color:#205b3c!important;border-top:4px solid #39835b;padding-top:18px!importa
 [data-testid="stMetric"]{background:#eaf4ec;border-color:#cbded0}
 [data-testid="stBaseButton-primary"]{background:#286544;border-color:#286544;color:#fff}
 [data-testid="stBaseButton-primary"]:hover{background:#1d5034;border-color:#1d5034}
+[data-testid="stAppViewContainer"]{background:linear-gradient(180deg,#e7f2e9 0px,#f5faf6 330px,#ffffff 700px)}
+.step{background:#e5f1e8;border-top:4px solid #39835b;border-radius:0 0 10px 10px;padding:16px 18px;min-height:165px}
+.step strong{color:#205b3c}.step p{color:#344f3e}
+[data-testid="stMetric"]{background:#dfeee3;border:1px solid #b7d2bf}
+hr{border-color:#bfd7c6!important}
 </style>""",
     unsafe_allow_html=True,
 )
